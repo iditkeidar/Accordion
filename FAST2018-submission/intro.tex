@@ -1,24 +1,72 @@
-HBase~\cite{hbase}. 
 
-\emph{log-structured merge (LSM)} trees, examples: Bigtable, HBase, LevelDB, MongoDB, SQLite4, RocksDB, WiredTiger,[5] Apache Cassandra, and InfluxDB.
+% NoSQL stores are popular
+NoSQL databases such as Apache HBase~\cite{hbase} 
+have become extremely popular over the last decade, and the range of applications for which they are used continously increases. 
+For example, in a recent HBase Conference (HBaseCon)\footnote{\url{http://hbase.apache.org/www.hbasecon.com}}, 
+the following companies reported using HBase -- 
+Yahoo Flurry for mobile app analytics; Yahoo for mail metadata and search; Pinterest for user data and graph services; 
+Alibaba for chat and online trade data; and Facebook for messaging. Similarly, 
+Imgur uses HBase to power its notifications system\footnote{\url{https://dzone.com/articles/why-imgur-dropped-mysql-in-favor-of-hbase}};
+Spotify uses HBase as base for Hadoop and machine learning
+jobs\footnote{\url{https://apachebigdata2015.sched.com}};
+and the list goes on. 
 
-HBase applications from HBaseCon:
-1. Yahoo/Flurry - mobile app analytics. Yahoo - Mail metadata and search 
-2. Pinterest - user data and graph service
-3. Alibaba - chat and online trade data
-4. Facebook - messaging
+% LSM trees optimize disk i/o 
+The leading approach for implementation of large NoSQL databases is using 
+ \emph{Log-structured merge (LSM)} trees, which are employed, e.g., by  
+Apache HBase, Bigtable, RocksDB, LevelDB, MongoDB, SQLite4, WiredTiger, Apache Cassandra, and InfluxDB.
+The premise for using LSM trees is that disk access is considered the 
+principal bottleneck in storage systems, even with today's SSDs~\cite{rocksdb,Tanenbaum:2014:MOS:2655363,Wu:2012:AWB:2093139.2093140}.
+Since reads can typically be masked by caching, the main design goal is to improve write throughput, which LSM trees do by batching 
+writes in memory and periodically \emph{flushing} the entire memory component to disk using sequential I/O.
+An LSM tree organizes data in a series of components of increasing sizes. Typically, one component -- at level zero -- resides in RAM
+and the remaining components are stored on disk. 
 
-Pipeline contains a double-ended queue of ImmutableSegments’s ordered by segment creation time. It is accessed by scans (read) as well as flushes and compactions (update). Since the segments are immutable, it is sufficient to provide the reader with a clone of the queue. One way to go would be to clone upon each scan, under the protection of a reentrant shared lock. We chose a more efficient copy-on-write approach. Namely, only the update operations synchronize on the pipeline. Each update modifies the read-only copy of the queue (volatile reference). The subsequent scans retrieve their clone lock-free. Note that if some segments are removed from the queue by in-memory compaction or disk flush in parallel with an ongoing scan, correctness is not affected because the data does not disappear. Rather, it may be referenced from multiple locations (for instance, both pipeline and snapshot). The scan algorithm filters the duplicates. 
+% Compactions hurt 
+The performance of state-of-the-art LSM stores is highly tuned, and yet as technology scales 
+and real-time performance expectations from Internet applications increase, these systems face more stringent performance demands.
+LSM performance highly depends on the rate and extent of \emph{compactions} it performs; a compaction reads some files (holding
+levels of the LSM tree) and merge-sorts them into a single file while removing redundant (deleted or overwritten) entries. 
+Compactions speed up reads by reducing the number of files the read has to search in, but slow down writes by consuming 
+CPU and disk resources. They also increase disk wear.    
+%One of the pain points with LSM stores is compactions \Idit{Can we cite something from RocksDB or another KV store here?}.
+In HBase, a major pain point is the occurrance of so-called \emph{major compactions}, which replace all the files (in a given HBase region).
+Indeed, HBase manuals and tuning tips are often aimed at reducing or even avoiding major compactions altogether.
+ %\footnote{\url{https://blogs.msdn.microsoft.com/ashish/2016/09/02}}.
 
-In-memory compaction swaps one or more segments in the queue with new (compacted) segments. Similarly to scan, it is a long-running operation, which should not disrupt the concurrent datapath operations. In order to achieve this, we implemented compaction in a non-blocking way. CompactionPipeline maintains a version that is promoted each time the queue tail is modified. When the compaction starts, it records this version. Upon completion, it atomically checks whether the version changed in the meantime, and atomically swaps the segments if it did not. This opportunistic approach succeed in most cases. Since in-memory compaction is an optimization, it is fine for it to fail on rare occasions. The version counter (long) is volatile - that is, changes to it are atomic and immediately observable. 
-Detailed Scenarios
+% Memory management
+LSM trees can benefit from a large memory component, which absorbs many writes before each disk flush, 
+and in turn delays the need for disk compactions, \Idit{Citations for this?} including major ones. 
+But because the memory component is dynamic and must support fast lookup by key, it is typically organized as a SkipList
+\Idit{Citations for this?} or a similar data structure.  Unfortunately, managing a large dynamic data structure induces 
+non-negligble management overhead. 
+Moreover, 
+LSM-based data stores typically perform compactions only on disk and do not attempt to eliminate redundancies in the memory component.
+Given that data access patterns often follow heavy-tailed distributions like Zipf,  this means that many versions of popular objects are 
+wastefully kept in the in-memory data structure. 
+Our work is motivated by this management overhead and waste. 
 
-Scan Operation (in particular, Get). The SegmentScanner’s are created (non-atomically) in the order of data movement between the MemStore segments, to preserve correctness. For example, in the course of scanner set creation a segment can move from active to pipeline, in which case it will be referenced by two scanners - however, no data is lost. The merge algorithm eliminates the redundant results that stem from the overlap.
+% Drumroll 
+In Section~\ref{sec:accordion}
+we introduce \sys, a new memory management scheme for LSM trees.
+The principles behind \sys\ are 
+\begin{enumerate}
+\item \emph{in-memory compactions} can free up memory space to absorb more writes before the
+memory component needs to be flushed, thus reducing compactions and disk wear; and
+\item \emph{flattening} dynamic data structures into static buffers can reduce memory management overhead.
+\end{enumerate}
 
-In-Memory Flush (happens when active overflows). A dedicated worker (1) blocks updates for the region (via RegionServicesForStores), (2) creates a new ImmutableSegment that wraps active, (3) atomically inserts it into pipeline, (4) creates a new MutableSegment and flips the active reference to it, (5) unblocks the updates, and (6) calls MemStoreCompactor. 
+% Implementation
+In Section~\ref{sec:hbase} we  discuss on our implementation of  \sys\ in HBase, which is committed  as the default path in HBase 2.0. 
+\Idit{Say something interesting about this process?}
+% Evaluation
+In Section~\ref{sec:eval} we experiment with \sys\ in a range of  scenarios -- with SSD and HDD storage, with different numbers
+of regions, and different workloads. Surprisingly, we see that in virtually all settings, disk I/O is \emph{not} the principal performance bottleneck,
+but rather memory management overhead is more substantial. By flattening the memory component \sys\ reduces this overhead and improves overall performance by \inred{XX\% to XX\%}. In-memory compactions have minor impact on performance at best, but do reduce 
+write amplification by \inred{XX\% to XX\%}, which is important for extending disk life.
 
-Disk Flush (happens when the region overflows, and decides to free up space in RAM). A dedicated worker (1) forces in-memory flush (to guarantee there is at least one segment in the pipeline), (2) creates a new CompositeImmutableSegment from all segments in the read-only clone of pipeline and flips the snapshot reference, (3) atomically removes references to segments in snapshot from CompactionPipeline, and (4) scans snapshot (merge across multiple segments) and flushes the results to disk. 
+\Idit{Need to think of a good summary sentence for here. }
 
-In-Memory Compaction (triggered by in-memory flush, except in the disk flush case). (1) Retrieves a versioned copy of pipeline, (2) builds a new (compacted) ImmutableSegment, (3) atomically, if the version did not change, swap one or more segments in pipeline with the new segment (swap target depends on the compaction policy, see below). 
 
-Note that all the atomic sections are extremely lightweight. They only include manipulation of a few references, and avoid any computation and copy. 
+
+

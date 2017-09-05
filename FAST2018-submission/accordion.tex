@@ -1,0 +1,18 @@
+
+
+\Idit{Below is a dump of the data structures discussion from the blog. Needs editing.}
+
+Pipeline contains a double-ended queue of ImmutableSegments’s ordered by segment creation time. It is accessed by scans (read) as well as flushes and compactions (update). Since the segments are immutable, it is sufficient to provide the reader with a clone of the queue. One way to go would be to clone upon each scan, under the protection of a reentrant shared lock. We chose a more efficient copy-on-write approach. Namely, only the update operations synchronize on the pipeline. Each update modifies the read-only copy of the queue (volatile reference). The subsequent scans retrieve their clone lock-free. Note that if some segments are removed from the queue by in-memory compaction or disk flush in parallel with an ongoing scan, correctness is not affected because the data does not disappear. Rather, it may be referenced from multiple locations (for instance, both pipeline and snapshot). The scan algorithm filters the duplicates. 
+
+In-memory compaction swaps one or more segments in the queue with new (compacted) segments. Similarly to scan, it is a long-running operation, which should not disrupt the concurrent datapath operations. In order to achieve this, we implemented compaction in a non-blocking way. CompactionPipeline maintains a version that is promoted each time the queue tail is modified. When the compaction starts, it records this version. Upon completion, it atomically checks whether the version changed in the meantime, and atomically swaps the segments if it did not. This opportunistic approach succeed in most cases. Since in-memory compaction is an optimization, it is fine for it to fail on rare occasions. The version counter (long) is volatile - that is, changes to it are atomic and immediately observable. 
+Detailed Scenarios
+
+Scan Operation (in particular, Get). The SegmentScanner’s are created (non-atomically) in the order of data movement between the MemStore segments, to preserve correctness. For example, in the course of scanner set creation a segment can move from active to pipeline, in which case it will be referenced by two scanners - however, no data is lost. The merge algorithm eliminates the redundant results that stem from the overlap.
+
+In-Memory Flush (happens when active overflows). A dedicated worker (1) blocks updates for the region (via RegionServicesForStores), (2) creates a new ImmutableSegment that wraps active, (3) atomically inserts it into pipeline, (4) creates a new MutableSegment and flips the active reference to it, (5) unblocks the updates, and (6) calls MemStoreCompactor. 
+
+Disk Flush (happens when the region overflows, and decides to free up space in RAM). A dedicated worker (1) forces in-memory flush (to guarantee there is at least one segment in the pipeline), (2) creates a new CompositeImmutableSegment from all segments in the read-only clone of pipeline and flips the snapshot reference, (3) atomically removes references to segments in snapshot from CompactionPipeline, and (4) scans snapshot (merge across multiple segments) and flushes the results to disk. 
+
+In-Memory Compaction (triggered by in-memory flush, except in the disk flush case). (1) Retrieves a versioned copy of pipeline, (2) builds a new (compacted) ImmutableSegment, (3) atomically, if the version did not change, swap one or more segments in pipeline with the new segment (swap target depends on the compaction policy, see below). 
+
+Note that all the atomic sections are extremely lightweight. They only include manipulation of a few references, and avoid any computation and copy. 
