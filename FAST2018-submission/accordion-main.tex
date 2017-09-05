@@ -1,0 +1,130 @@
+\documentclass[letterpaper,twocolumn,10pt]{article}
+%\usepackage{times}
+\usepackage{usenix,epsfig,endnotes}
+
+%========================
+%  Packages
+%========================
+
+\usepackage{graphicx,url,color}
+\usepackage{amsmath}
+\usepackage{amssymb}
+%\usepackage{amsthm}  %<---- for a different "look" in theorems (theorem word in bold, etc.) %ACM conflict with proof definition?
+%\usepackage{subfigure}
+%\usepackage[tight,footnotesize]{subfigure}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+\usepackage{times}
+
+%\usepackage{todonotes}
+%\usepackage[normalem]{ulem} %strikethrough: \sout{Hello World}
+%\usepackage{lastpage} %for number of pages
+%\usepackage{xspace}
+%\usepackage{multirow}
+%\usepackage{balance}
+
+\usepackage[colorlinks=true,allcolors=blue,breaklinks]{hyperref}   % hyperlinks, including DOIs and URLs in bibliography
+\usepackage{subcaption}
+\usepackage{graphicx}
+%\usepackage{caption}
+\usepackage{float}
+
+%========================
+%  Macros
+%========================
+
+\newcommand{\code}[1]{\textsf{\fontsize{9}{11}\selectfont #1}}
+
+\newcommand{\inred}[1]{{\color{red}{#1}}}
+\newcommand{\remove}[1]{}
+\newcommand{\Idit}[1]{[[\inred{Idit: #1}]]}
+\newcommand{\tb}{\hspace{5mm}}
+
+\newcommand{\sys}{Accordion}
+
+
+\newcommand{\speedup}[1]{#1$\times$}
+\newcommand{\tuple}[1]{\ensuremath{\langle \mbox{#1} \rangle}}
+
+%========================
+\begin{document}
+
+\date{}
+
+\title{\Large \bf  Playing HBase Tunes on \sys}
+
+
+\author{
+\remove{
+Edward Bortnikov\footnotemark[1]  \tb
+Anastasia Braginsky\footnotemark[1]  \tb
+Eshcar Hillel\footnotemark[1] \tb 
+Idit Keidar\footnotemark[1] \footnotemark[2] \\
+	\footnotemark[1] Yahoo Research\ \ \footnotemark[2] Technion  \\ [2mm]
+%\small Submission Type: Research	
+}
+Deployed-system paper
+} % end author
+
+
+\maketitle
+
+
+
+%=========================================================================
+%  Abstract
+%=========================================================================
+
+\subsection*{Abstract}
+
+Distributed NoSQL data stores are now ubiquitously used for a wide range of Internet-scale applications, 
+including search indexing, analytics, user data management, messaging, advertizing, online trading, and much much more.
+Such data stores are commonly organized as  log-structured merge (LSM) trees, 
+which replace random disk writes with sequential I/O by accumulating large batches of updates 
+in an in-memory data structure and merging it with  on-disk store in the background. 
+The performance of state-of-the-art LSM stores is highly tuned, and yet as technology scales 
+and real-time performance expectations from Internet applications increase, these systems face more stringent performance demands.
+
+In this paper we report on our experience in  alleviating performance bottlenecks in Apache HBase. 
+We present \sys, a new memory management scheme for LSM-based data stores, which we have implemented and committed in HBase 2.0.
+\sys\ reduces the size of the highest LSM level, namely, the dynamic memory component that absorbs writes, and utilizes the remainging 
+RAM capacity to store flat static data. This both saves space and reduces the memory management overhead (garbage collection, etc.). 
+In addition, \sys\ allows for in-memory compactions (of the flat data), whereas existing LSM-based stores employ only disk compactions. 
+\sys\ thus produces  fewer disk writes, which reduces disk leveling as well as the need for disk compactions. 
+Perhaps surprisingly, our experiments show that memory management overhead is a more significant bottleneck than disk I/O in a
+wide range of deployments and workloads, and hence \sys\ reaps more performance benefits from flattening than from in-memory compactions.
+
+
+
+\remove{
+such as  \Idit{other examples?} 
+
+\emph{log-structured merge (LSM)} trees,
+
+Example NoSQL data stores: Bigtable, HBase, LevelDB, MongoDB, SQLite4, RocksDB, WiredTiger,[5] Apache Cassandra, and InfluxDB.
+
+1. Yahoo/Flurry - mobile app analytics. Yahoo - Mail metadata and search 
+2. Pinterest - user data and graph service
+3. Alibaba - chat and online trade data
+4. Facebook - messaging
+
+
+}
+%========================
+
+\section{Introduction} \label{sec:intro}
+\input{intro} 
+
+
+\section{Conclusion} \label{sec:conclusions}
+
+
+%\subsection*{Acknowledgments}
+
+\newpage
+
+\bibliographystyle{acm}
+
+\bibliography{refs}
+
+\end{document}
