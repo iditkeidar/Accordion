@@ -37,12 +37,18 @@
 \newcommand{\inred}[1]{{\color{red}{#1}}}
 \newcommand{\remove}[1]{}
 \newcommand{\Idit}[1]{[[\inred{Idit: #1}]]}
+\newcommand{\eshcar}[1]{[[\inred{eshcar: #1}]]}
 \newcommand{\tb}{\hspace{5mm}}
 
 \newcommand{\sys}{Accordion}
 \newcommand{\basic}{{\em Basic}}
 \newcommand{\eager}{{\em Eager}}
 \newcommand{\adp}{{\em Adaptive}}
+
+\newcommand{\none}{{\em None}}
+\newcommand{\magic}{\em {Magic}}
+\newcommand{\figw}{0.925\columnwidth}
+
 
 \newcommand{\speedup}[1]{#1$\times$}
 \newcommand{\tuple}[1]{\ensuremath{\langle \mbox{#1} \rangle}}
@@ -106,8 +112,9 @@ while the latter is important for extending disk lifes.
 \section{Introduction} \label{sec:intro}
 \input{intro} 
 
-\section{Background}\label{sec:bg}
-%\input{bg}
+
+\section{Background: LSM Trees} \label{sec:background}
+\input{background} 
 
 \section{\sys} \label{sec:accordion}
 \input{accordion} 
@@ -115,6 +122,7 @@ while the latter is important for extending disk lifes.
 \section{Deployment in HBase} \label{sec:hbase}
 
 \section{Empirical study} \label{sec:eval}
+\input{eval}
 
 \section{Conclusion} \label{sec:conclusions}
 
