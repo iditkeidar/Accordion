@@ -1,6 +1,35 @@
+\sys\/ introduces a {\em compacting\/} memstore to the LSM-tree design framework. Contrast to the traditional memstore, 
+which maintains all the RAM-resident data in a single monolithic data structure, \sys\/ manages the data as a sequence of 
+{\em segments}, ordered by creation time. At all times, the last created segment, called {\em active}, absorbs the put operations. 
+Once this segment grows to a $\rho$ fraction of the memstore size bound, it becomes immutable. 
+The system moves it to the queue of immutable segments, called {\em pipeline}, and creates a new active segment. 
+We call this event {\em in-memory flush}. 
+
+The compacting memstore periodically shrinks the memory footprint of pipeline in the background, by applying one or more 
+{\em in-memory compaction} mechanisms: 
+\begin{enumerate}
+\item {\em Flattening of intra-segment search indices.} Since pipelined segments are immutable, it is sufficient to maintain 
+their indices as compact ordered arrays, rather than reference-hungry skiplists.  
+\item {\em Merging multiple segment indices.} A single index covering multiple segment data is created. Redundant data 
+versions are not eliminated, to avoid comparisons and physical data copy. 
+\item  {\em Merging multiple segment data.} Extends the above with redundant data elimination. The created flat index 
+contains no redundancies. In case the memstore manages its cell data storage internally, the surviving cells are relocated
+to new slabs; otherwise, the redundant cells are simply de-referenced, and consequently garbage-collected.    
+\end{enumerate} 
+ 
+This way, larger but more compact segments are created. The memory efficiency stems from two optimizations: (1) flattening 
+of the intra-segment search index, and (2) elimination of redundant versions from the index, and optionally from the data itself. 
+The pipeline is therefore `'breathing'' (expanding and contracting), similar to accordion bellows. 
+
+The get and scan operations that access the memstore iterate through all the segments, similarly to the way the traditional 
+LSM tree iterates through its levels. (No change is incurred to the rest of the read path, which accesses the on-disk data). 
 
 
-\Idit{Below is a dump of the data structures discussion from the blog. Needs editing.}
+When region server decides to flush one or more memstores to disk to free up memory, it considers the compacting memstores 
+after the rest that have overflown. The rationale is to prolong the lifetime of MemStore’s that manage their memory efficiently, in order to reduce the overall I/O. When such a flush does happen, all pipeline segments are moved to a composite snapshot,  merged, and streamed to a new HFile. 
+
+Figure 1 illustrates the structure of CompactingMemStore versus the traditional design. 
+
 
 Pipeline contains a double-ended queue of ImmutableSegments’s ordered by segment creation time. It is accessed by scans (read) as well as flushes and compactions (update). Since the segments are immutable, it is sufficient to provide the reader with a clone of the queue. One way to go would be to clone upon each scan, under the protection of a reentrant shared lock. We chose a more efficient copy-on-write approach. Namely, only the update operations synchronize on the pipeline. Each update modifies the read-only copy of the queue (volatile reference). The subsequent scans retrieve their clone lock-free. Note that if some segments are removed from the queue by in-memory compaction or disk flush in parallel with an ongoing scan, correctness is not affected because the data does not disappear. Rather, it may be referenced from multiple locations (for instance, both pipeline and snapshot). The scan algorithm filters the duplicates. 
 
