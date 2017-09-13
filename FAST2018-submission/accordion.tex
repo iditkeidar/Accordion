@@ -1,47 +1,69 @@
-\sys\/ introduces a {\em compacting\/} memstore to the LSM-tree design framework. Contrast to the traditional memstore, 
-which maintains all the RAM-resident data in a single monolithic data structure, \sys\/ manages the data as a sequence of 
-{\em segments}, ordered by creation time. At all times, the last created segment, called {\em active}, absorbs the put operations. 
-Once this segment grows to a $\rho$ fraction of the memstore size bound, it becomes immutable. 
-The system moves it to the queue of immutable segments, called {\em pipeline}, and creates a new active segment. 
-We call this event {\em in-memory flush}. 
+\subsection{Overview}
 
-The compacting memstore periodically shrinks the memory footprint of pipeline in the background, by applying one or more 
-{\em in-memory compaction} mechanisms: 
+\begin{figure*}
+\caption{\bf{LSM architecture based on compacting memstore.}}
+\label{fig:compacting}
+\end{figure*}
+
+\sys\/ introduces a {\em compacting\/} memstore to the LSM tree design framework. Contrast to the traditional memstore, 
+which maintains all the RAM-resident data in a single monolithic data structure, \sys\/ manages the data as a sequence of 
+{\em segments}, ordered by creation time. At all times, the last created segment, called {\em active}, is mutable; it absorbs 
+the put operations. The rest of the segments are immutable. The get and scan operations retrieve data from all the segments 
+simultaneously, similarly to traditional LSM tree read from multiple levels. Figure~\ref{fig:compacting} illustrates the architecture. 
+
+Once the active segment grows to a $\rho$ fraction of the memstore size bound, an {\em in-memory flush} happens.
+The segment becomes immutable. The system queues it up to the list of inactive segments, called {\em pipeline}, 
+and creates a new active segment. The  memstore periodically shrinks the pipeline in the background, by applying 
+one or more {\em in-memory compaction} mechanisms: 
 \begin{enumerate}
 \item {\em Flattening of intra-segment search indices.} Since pipelined segments are immutable, it is sufficient to maintain 
-their indices as compact ordered arrays, rather than reference-hungry skiplists.  
+their indices as compact ordered arrays, rather than reference-hungry skiplists. An additional advantage of the flat layout 
+is that the index can be relocated to off-heap memory (unmanaged by the JVM), which improves performance predictability 
+through reduced GC jitter~\cite{?}. 
 \item {\em Merging multiple segment indices.} A single index covering multiple segment data is created. Redundant data 
 versions are not eliminated, to avoid comparisons and physical data copy. 
 \item  {\em Merging multiple segment data.} Extends the above with redundant data elimination. The created flat index 
 contains no redundancies. In case the memstore manages its cell data storage internally, the surviving cells are relocated
-to new slabs; otherwise, the redundant cells are simply de-referenced, and consequently garbage-collected.    
+to new slabs; otherwise, the redundant cells are simply de-referenced, and later garbage-collected.    
 \end{enumerate} 
+The choice of compaction mechanisms is guided by the policies described in Section~\ref{sec:policies}. 
+
+When the region server flushes a compacting memstore to disk, it scans the data from a snapshot 
+of the pipelined segments. Similarly to the traditional design, the scan eliminates the redundancies 
+prior to flush. 
  
-This way, larger but more compact segments are created. The memory efficiency stems from two optimizations: (1) flattening 
-of the intra-segment search index, and (2) elimination of redundant versions from the index, and optionally from the data itself. 
-The pipeline is therefore `'breathing'' (expanding and contracting), similar to accordion bellows. 
+%Summing up, in contrast with traditional memstores that can only grow between disk flushes, compacting memstores 
+%can both expand and contract, resembling the movement of accordion bellows. 
+%In-memory compactions that reduce the number of immutable segments bound the tail read latencies, as most reads access 
+%a few segments. 
 
-The get and scan operations that access the memstore iterate through all the segments, similarly to the way the traditional 
-LSM tree iterates through its levels. (No change is incurred to the rest of the read path, which accesses the on-disk data). 
+\subsection{Compaction Policies}
+\label{sec:policies}
 
+We implement three in-memory compaction policies: 
+\paragraph{\basic} (low-overhead). Once a segment becomes immutable, flatten its index. Once the pipeline size exceeds $s$, 
+merge all segment indices into one.  
+\paragraph{\eager} (high-overhead, high-reward under redundancy-heavy workloads). 
+In addition to \basic\/ mechanisms, eliminates data redundancies.
+\paragraph{\adp} (the best of all worlds). The heuristic adapts to the recent workload, and selects either \basic\/ 
+or \eager\/ optimizations depending on the context. \inred{Eshcar, please add the details}. 
 
-When region server decides to flush one or more memstores to disk to free up memory, it considers the compacting memstores 
-after the rest that have overflown. The rationale is to prolong the lifetime of MemStore’s that manage their memory efficiently, in order to reduce the overall I/O. When such a flush does happen, all pipeline segments are moved to a composite snapshot,  merged, and streamed to a new HFile. 
+\subsection{Implementation Details}
 
-Figure 1 illustrates the structure of CompactingMemStore versus the traditional design. 
+A compacting memstore is comprised from the active segment and a double-ended queue (pipeline) of inactive segments. 
+The pipeline is accessed by read API's (get and scan), as well as by backgound disk flushes and in-memory compactions. 
+The latter two modify the pipeline, by adding/removing/replacing segments. These modifications happen infrequently. As 
+long as the pipeline does not change, the reads access it via an immutable clone in a lock-free way. Rebuilding the clone
+is inexpensive -- it only entails reference copy since the segments themselves are immutable. 
 
+Note that segments might be removed from the pipeline and scheduled for disk flush in parallel with a read from the clone. 
+Here, correctness is not affected because the data does not disappear. It might be temporarily referenced from multiple 
+locations, though (the pipeline clone and the pre-flush snapshot). The read algorithm filters the duplicates. 
 
-Pipeline contains a double-ended queue of ImmutableSegments’s ordered by segment creation time. It is accessed by scans (read) as well as flushes and compactions (update). Since the segments are immutable, it is sufficient to provide the reader with a clone of the queue. One way to go would be to clone upon each scan, under the protection of a reentrant shared lock. We chose a more efficient copy-on-write approach. Namely, only the update operations synchronize on the pipeline. Each update modifies the read-only copy of the queue (volatile reference). The subsequent scans retrieve their clone lock-free. Note that if some segments are removed from the queue by in-memory compaction or disk flush in parallel with an ongoing scan, correctness is not affected because the data does not disappear. Rather, it may be referenced from multiple locations (for instance, both pipeline and snapshot). The scan algorithm filters the duplicates. 
+In-memory compaction swaps one or more segments in the queue with new (compacted) segments. It is a long-running operation, 
+which should not disrupt the concurrent datapath operations. For that, in-memory compaction works in a non-blocking way. 
+The pipeline object maintains a version that is promoted each time the queue tail is modified. When the compaction starts, 
+it records this version. Upon completion, it compares the current version with the recorded value, and swaps 
+the segments if the latter did not change. The compare-and-swap is atomic (CAS). Since in-memory compaction 
+is an optimization, the swap may fail on rare occasions.  
 
-In-memory compaction swaps one or more segments in the queue with new (compacted) segments. Similarly to scan, it is a long-running operation, which should not disrupt the concurrent datapath operations. In order to achieve this, we implemented compaction in a non-blocking way. CompactionPipeline maintains a version that is promoted each time the queue tail is modified. When the compaction starts, it records this version. Upon completion, it atomically checks whether the version changed in the meantime, and atomically swaps the segments if it did not. This opportunistic approach succeed in most cases. Since in-memory compaction is an optimization, it is fine for it to fail on rare occasions. The version counter (long) is volatile - that is, changes to it are atomic and immediately observable. 
-Detailed Scenarios
-
-Scan Operation (in particular, Get). The SegmentScanner’s are created (non-atomically) in the order of data movement between the MemStore segments, to preserve correctness. For example, in the course of scanner set creation a segment can move from active to pipeline, in which case it will be referenced by two scanners - however, no data is lost. The merge algorithm eliminates the redundant results that stem from the overlap.
-
-In-Memory Flush (happens when active overflows). A dedicated worker (1) blocks updates for the region (via RegionServicesForStores), (2) creates a new ImmutableSegment that wraps active, (3) atomically inserts it into pipeline, (4) creates a new MutableSegment and flips the active reference to it, (5) unblocks the updates, and (6) calls MemStoreCompactor. 
-
-Disk Flush (happens when the region overflows, and decides to free up space in RAM). A dedicated worker (1) forces in-memory flush (to guarantee there is at least one segment in the pipeline), (2) creates a new CompositeImmutableSegment from all segments in the read-only clone of pipeline and flips the snapshot reference, (3) atomically removes references to segments in snapshot from CompactionPipeline, and (4) scans snapshot (merge across multiple segments) and flushes the results to disk. 
-
-In-Memory Compaction (triggered by in-memory flush, except in the disk flush case). (1) Retrieves a versioned copy of pipeline, (2) builds a new (compacted) ImmutableSegment, (3) atomically, if the version did not change, swap one or more segments in pipeline with the new segment (swap target depends on the compaction policy, see below). 
-
-Note that all the atomic sections are extremely lightweight. They only include manipulation of a few references, and avoid any computation and copy. 

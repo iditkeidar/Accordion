@@ -13,35 +13,39 @@ and the list goes on.
 
 % LSM trees optimize disk i/o 
 The leading approach for implementation of large NoSQL databases is using 
- \emph{Log-structured merge (LSM)} trees, which are employed, e.g., by  
-Apache HBase, Bigtable, RocksDB, LevelDB, MongoDB, SQLite4, WiredTiger, Apache Cassandra, and InfluxDB.
+ \emph{Log-structured merge (LSM)} trees, which are employed by  
+Apache HBase, Bigtable, RocksDB, LevelDB, MongoDB, SQLite4, WiredTiger, Apache Cassandra,  InfluxDB, and many more.
 The premise for using LSM trees is that disk access is considered the 
 principal bottleneck in storage systems, even with today's SSDs~\cite{rocksdb,Tanenbaum:2014:MOS:2655363,Wu:2012:AWB:2093139.2093140}.
 Since reads can typically be masked by caching, the main design goal is to improve write throughput, which LSM trees do by batching 
-writes in memory and periodically \emph{flushing} the entire memory component to disk using sequential I/O.
-An LSM tree organizes data in a series of components of increasing sizes. Typically, one component -- at level zero -- resides in RAM
-and the remaining components are stored on disk. 
+writes in memory and periodically \emph{flushing} the  memory  to disk using sequential I/O.
+An LSM tree thus includes a \emph{memory store} in addition to the large  \emph{disk store} consisting of a collection of files. 
+The memory store absorbs writes and is periodically flushed to disk as a new file. 
+To reduce the number of files, the data store periodically runs a \emph{compaction} process, which reads some files from the disk store
+and merge-sorts them into a single file while removing redundant (deleted or overwritten) entries. 
+For further background on %HBase and 
+LSM trees, see Section~\ref{sec:background}.
 
 % Compactions hurt 
 The performance of state-of-the-art LSM stores is highly tuned, and yet as technology scales 
 and real-time performance expectations from Internet applications increase, these systems face more stringent performance demands.
-LSM performance highly depends on the rate and extent of \emph{compactions} it performs; a compaction reads some files (holding
-levels of the LSM tree) and merge-sorts them into a single file while removing redundant (deleted or overwritten) entries. 
+LSM performance highly depends on the rate and extent of compactions it performs. 
 Compactions speed up reads by reducing the number of files the read has to search in, but slow down writes by consuming 
 CPU and disk resources. They also increase disk wear.    
 %One of the pain points with LSM stores is compactions \Idit{Can we cite something from RocksDB or another KV store here?}.
-In HBase, a major pain point is the occurrance of so-called \emph{major compactions}, which replace all the files (in a given HBase region).
+In HBase, a major pain point is the occurrance of so-called \emph{major compactions}, which replace all the files of a given table.
 Indeed, HBase manuals and tuning tips are often aimed at reducing or even avoiding major compactions altogether.
  %\footnote{\url{https://blogs.msdn.microsoft.com/ashish/2016/09/02}}.
 
 % Memory management
-LSM trees can benefit from a large memory component, which absorbs many writes before each disk flush, 
+LSM trees can benefit from a large memory store, which absorbs many writes before each disk flush, 
 and in turn delays the need for disk compactions, \Idit{Citations for this?} including major ones. 
-But because the memory component is dynamic and must support fast lookup by key, it is typically organized as a SkipList
+The memory store is \emph{dynamic}, i.e., constantly changes, and must support fast lookup by key. 
+It is therefore typically organized as a skip list
 \Idit{Citations for this?} or a similar data structure.  Unfortunately, managing a large dynamic data structure induces 
-non-negligble management overhead. 
+non-negligble  overhead. 
 Moreover, 
-LSM-based data stores typically perform compactions only on disk and do not attempt to eliminate redundancies in the memory component.
+LSM-based data stores typically perform compactions only on disk and do not attempt to eliminate redundancies in the memory store.
 Given that data access patterns often follow heavy-tailed distributions like Zipf,  this means that many versions of popular objects are 
 wastefully kept in the in-memory data structure. 
 Our work is motivated by this management overhead and waste. 
@@ -52,7 +56,7 @@ we introduce \sys, a new memory management scheme for LSM trees.
 The principles behind \sys\ are 
 \begin{enumerate}
 \item \emph{in-memory compactions} can free up memory space to absorb more writes before the
-memory component needs to be flushed, thus reducing compactions and disk wear; and
+memory store needs to be flushed, thus reducing compactions and disk wear; and
 \item \emph{flattening} dynamic data structures into static buffers can reduce memory management overhead.
 \end{enumerate}
 
@@ -62,7 +66,7 @@ In Section~\ref{sec:hbase} we  discuss on our implementation of  \sys\ in HBase,
 % Evaluation
 In Section~\ref{sec:eval} we experiment with \sys\ in a range of  scenarios -- with SSD and HDD storage, with different numbers
 of regions, and different workloads. Surprisingly, we see that in virtually all settings, disk I/O is \emph{not} the principal performance bottleneck,
-but rather memory management overhead is more substantial. By flattening the memory component \sys\ reduces this overhead and improves overall performance by \inred{XX\% to XX\%}. In-memory compactions have minor impact on performance at best, but do reduce 
+but rather memory management overhead is more substantial. By flattening the memory store \sys\ reduces this overhead and improves overall performance by \inred{XX\% to XX\%}. In-memory compactions have minor impact on performance at best, but do reduce 
 write amplification by \inred{XX\% to XX\%}, which is important for extending disk life.
 
 \Idit{Need to think of a good summary sentence for here. }
