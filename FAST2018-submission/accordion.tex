@@ -52,18 +52,19 @@ or \eager\/ optimizations depending on the context. \inred{Eshcar, please add th
 
 A compacting memstore is comprised from the active segment and a double-ended queue (pipeline) of inactive segments. 
 The pipeline is accessed by read API's (get and scan), as well as by backgound disk flushes and in-memory compactions. 
-The latter two modify the pipeline, by adding/removing/replacing segments. These modifications happen infrequently. As 
-long as the pipeline does not change, the reads access it via an immutable clone in a lock-free way. Rebuilding the clone
-is inexpensive -- it only entails reference copy since the segments themselves are immutable. 
+The latter two modify the pipeline, by adding/removing/replacing segments. These modifications happen infrequently. 
 
-Note that segments might be removed from the pipeline and scheduled for disk flush in parallel with a read from the clone. 
-Here, correctness is not affected because the data does not disappear. It might be temporarily referenced from multiple 
-locations, though (the pipeline clone and the pre-flush snapshot). The read algorithm filters the duplicates. 
+The pipeline readers and writers coordinate through a lightweight copy-on-write, as follows. The pipeline object is versioned. 
+Each modification promotes the version number, and atomically swaps the global reference to the new version clone. Note
+that cloning is inexpensive -- only the segment references are copied since the segments themselves are immutable. 
 
-In-memory compaction swaps one or more segments in the queue with new (compacted) segments. It is a long-running operation, 
-which should not disrupt the concurrent datapath operations. For that, in-memory compaction works in a non-blocking way. 
-The pipeline object maintains a version that is promoted each time the queue tail is modified. When the compaction starts, 
-it records this version. Upon completion, it compares the current version with the recorded value, and swaps 
-the segments if the latter did not change. The compare-and-swap is atomic (CAS). Since in-memory compaction 
-is an optimization, the swap may fail on rare occasions.  
+The reads access the segments lock-free, through the version obtained at the beginning of the operation. If a disk flush
+is scheduled in the middle of a read, a segment may migrate from the pipeline to the pre-flush snapshot buffer. The read 
+safety is guaranteed by scanning the pipeline clone first. This way, a segment may be encountered twice but no data is 
+lost. The scan algorithm filters out the duplicates. 
+
+In-memory compaction is a read-modify-write operation, which swaps one or more segments in the pipeline 
+with a new segment built from their data. This operation's atomicity is guaranteed by compare-and-swap (CAS), 
+which flips pipeline version only if the latter did not change since the compaction started. Note that it is acceptable
+for in-memory compaction to fail sometimes because it is an optimization that may be retried later. 
 
