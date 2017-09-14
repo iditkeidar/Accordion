@@ -41,16 +41,25 @@ of disk reads per query) and {\em write amplification} (the ratio of bytes writt
 database). In addition to its performance impact, write amplification accelerates device wearout, especially for SSD 
 hardware~\cite{Hu:2009}. 
 
+Enormous effort has been invested in designing compaction parameter tuning, scheduling, etc.~\cite{hbasetuning,
+universalcompaction,scylladbcompaction,Sears:2012}. However, all these approaches only deal with the aftermath
+of organizing the disk store as a sequence of files created upon memory store overflow events. Obviously, the less 
+often the memory overflows, the smaller the ensuing flush and compaction toll, and the better the overall 
+system performance. Memory expansion partially achieves this goal, but it has its limits. The RAM of a typical 
+production machine is 2-3 orders of magnitide smaller than disk space. 
+%The memory store is typically configured to consume part of it (in HBase, $40\%$ by default). 
+Therefore, in its lifetime, a store is flushed to disk hundreds to thousands of times, which entails many more compactions. 
+Our work is motivated by stretching the time between flushes {\em in software}, through better use of memory. 
 
- 
-%One of the pain points with LSM stores is compactions \Idit{Can we cite something from RocksDB or another KV store here?}.
-In HBase, a major pain point is the occurrance of so-called \emph{major compactions}, which replace all the files of a given table.
-Indeed, HBase manuals and tuning tips are often aimed at reducing or even avoiding major compactions altogether.
+%the memory store growth rate is indepe
+
+%In HBase, a major pain point is the occurrance of so-called \emph{major compactions}, which replace all the files of a given table.
+%Indeed, HBase manuals and tuning tips are often aimed at reducing or even avoiding major compactions altogether.
  %\footnote{\url{https://blogs.msdn.microsoft.com/ashish/2016/09/02}}.
 
 % Memory management
-LSM trees can benefit from a large memory store, which absorbs many writes before each disk flush, 
-and in turn delays the need for disk compactions, \Idit{Citations for this?} including major ones. 
+%LSM trees can benefit from a large memory store, which absorbs many writes before each disk flush, 
+%and in turn delays the need for disk compactions, \Idit{Citations for this?} including major ones. 
 The memory store is \emph{dynamic}, i.e., constantly changes, and must support fast lookup by key. 
 It is therefore typically organized as a skip list
 \Idit{Citations for this?} or a similar data structure.  Unfortunately, managing a large dynamic data structure induces 
