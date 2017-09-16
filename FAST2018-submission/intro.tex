@@ -15,7 +15,7 @@ Pinterest/Zen\footnote{\small{\url{https://www.slideshare.net/InfoQ/zen-pinteres
 %\footnote{\small{HBaseCon 2017 -- \url{http://hbase.apache.org/www.hbasecon.com}}}. 
 
 % LSM trees optimize disk i/o 
-The leading approach for implementation of scalable key-value storage is \emph{log-structured merge (LSM)} trees~\cite{O'Neil:1996}.
+The leading approach for implementation of write-intensive key-value storage is \emph{log-structured merge (LSM)} trees~\cite{O'Neil:1996}.
 This technology is ubiquitously used by popular key-value storage libraries (e.g., LevelDB\footnote{\small{\url{https://github.com/google/leveldb}}}, 
 RocksDB\footnote{\small{\url{https://rocksdb.org}}}, ScyllaDB\footnote{\small{\url{https://github.com/scylladb/scylla}}}) and distributed systems on top 
 of them (e.g., Bigtable~\cite{Chang2008}, Cassandra\footnote{\small{\url{http://cassandra.apache.org/}}}, HBase, 
@@ -23,7 +23,8 @@ MongoDB\footnote{\small{\url{http://mongorocks.org/}}}, MySql\footnote{\small{\u
 %which are employed by  Apache HBase, Bigtable, RocksDB, LevelDB, MongoDB, SQLite4, WiredTiger, Apache Cassandra,  InfluxDB, and many more.
 The premise for using LSM trees is that disk access is considered the principal bottleneck in storage systems, even with today's SSD hardware~\cite{rocksdb,Tanenbaum:2014:MOS:2655363,Wu:2012:AWB:2093139.2093140}. 
 The main design goal is to improve write throughput, which LSM trees do by batching writes in memory 
-and periodically \emph{flushing} the memory  to disk. This way, random-access I/O is transformed to storage-friendly sequential I/O. 
+and periodically \emph{flushing} the memory  to disk. This way, expensive random-access I/O is transformed 
+into storage-friendly sequential I/O. 
 
 An LSM tree includes a \emph{memory store} in addition to the large \emph{disk store} consisting of a collection of files. 
 The memory store absorbs writes, and is periodically flushed to disk as a new immutable file. Reads search for the data
