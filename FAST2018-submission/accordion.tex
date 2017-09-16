@@ -19,7 +19,7 @@ one or more {\em in-memory compaction} mechanisms:
 \item {\em Flattening of intra-segment search indices.} Since pipelined segments are immutable, it is sufficient to maintain 
 their indices as compact ordered arrays, rather than reference-hungry skiplists. An additional advantage of the flat layout 
 is that the index can be relocated to off-heap memory (unmanaged by the JVM), which improves performance predictability 
-through reduced GC jitter~\cite{?}. 
+through reduced GC jitter~\cite{alibabahbase}. 
 \item {\em Merging multiple segment indices.} A single index covering multiple segment data is created. Redundant data 
 versions are not eliminated, to avoid comparisons and physical data copy. 
 \item  {\em Merging multiple segment data.} Extends the above with redundant data elimination. The created flat index 

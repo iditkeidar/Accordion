@@ -4,7 +4,7 @@ NoSQL key-value data stores such as Apache HBase~\cite{hbase} have become extrem
 and the range of applications for which they are used continously increases. A small sample of the recently 
 published use cases includes mass-scale online analytics (Airbnb/Airstream\footnote{\small{\url{https://www.slideshare.net/HBaseCon/apache-hbase-at-airbnb}}}, 
 Yahoo/Flurry\footnote{\small{\url{https://www.slideshare.net/HBaseCon/hbasecon-2015-hbase-operations-in-a-flurry}}}), e-commerce product search 
-and recommendation (Alibaba\footnote{\small{\url{https://blog.cloudera.com/blog/2017/03/offheap-read-path-in-production-the-alibaba-story/}}}), 
+and recommendation (Alibaba~\cite{alibabahbase}), 
 graph storage (Facebook/Dragon\footnote{\small{\url{https://code.facebook.com/posts/1737605303120405/dragon-a-distributed-graph-query-engine/}}}, 
 Pinterest/Zen\footnote{\small{\url{https://www.slideshare.net/InfoQ/zen-pinterests-graph-storage-service}}}), etc. 
 
@@ -16,7 +16,8 @@ Pinterest/Zen\footnote{\small{\url{https://www.slideshare.net/InfoQ/zen-pinteres
 
 % LSM trees optimize disk i/o 
 The leading approach for implementation of scalable key-value storage is \emph{log-structured merge (LSM)} trees~\cite{O'Neil:1996}.
-This technology is ubiquitously used by popular key-value storage libraries (e.g., LevelDB, RocksDB, ScyllaDB) and distributed systems on top 
+This technology is ubiquitously used by popular key-value storage libraries (e.g., LevelDB\footnote{\small{\url{https://github.com/google/leveldb}}}, 
+RocksDB\footnote{\small{\url{https://rocksdb.org}}}, ScyllaDB\footnote{\small{\url{https://github.com/scylladb/scylla}}}) and distributed systems on top 
 of them (e.g., Bigtable~\cite{Chang2008}, Cassandra\footnote{\small{\url{http://cassandra.apache.org/}}}, HBase, 
 MongoDB\footnote{\small{\url{http://mongorocks.org/}}}, MySql\footnote{\small{\url{http://myrocks.io/}}}), etc. 
 %which are employed by  Apache HBase, Bigtable, RocksDB, LevelDB, MongoDB, SQLite4, WiredTiger, Apache Cassandra,  InfluxDB, and many more.
@@ -70,32 +71,32 @@ We introduce \sys, an algorithm for memory store management in LSM trees. %, whi
  into a small dynamic segment that absorbs the recent writes, and a sequence of static segments created 
  from previous dynamic segments by {\em in-memory flushes}. These segments have an optimized memory
  layout (flat index), which reduces the memory overhead. Depending on the workload, the algorithm may 
- perform {\em in-memory compactions}, which eliminate the redundant versions. In-memory flushes and 
- compactions happen at a higher rate than their system-level siblings. Through careful memory management 
- they let the system flush to disk less frequently, and consequently reduce the overall I/O and the CPU cycles
- wasted on background maintenance of the LSM tree structure. In Java implementations (e.g., HBase), shrinking 
- the dynamic component results in singnificant reduction of GC overhead. Finally, the reduction in disk writes  
-decelerates the hardware wearout period. 
+ perform {\em in-memory compactions}, which eliminate the redundant versions. Section~\ref{sec:accordion}
+ fleshes out the implementation details. 
+ 
+ In-memory flushes and compactions occur at a higher rate than their system-level siblings. They allow the system 
+ flush to disk less frequently, and consequently reduce the overall I/O and the CPU cycles wasted on background maintenance
+  of the LSM tree structure. In Java implementations (e.g., HBase), shrinking 
+ the dynamic component results in singnificant reduction of GC overhead. Furthermore, since the static indices 
+ are flat, the system can place them in off-JVM heap memory, thereby exploiting more RAM. Finally, reducing the 
+ disk I/O decelerates the hardware wearout period. 
 
-\remove{
-\begin{enumerate}
-\item \emph{in-memory compactions} can free up memory space to absorb more writes before the
-memory store needs to be flushed, thus reducing compactions and disk wear; and
-\item \emph{flattening} dynamic data structures into static buffers can reduce memory management overhead.
-\end{enumerate}
+% Status
+\sys\/ is implemented in HBase production code; it is generally available starting the HBase 2.0 release. 
+The extensive evaluation process led to \sys's adoption as default memory store implementation. 
 
+% Experiments
+In Section~\ref{sec:eval} we experiment with \sys\ implementation in HBase in a range of scenarios.
+We study production-size datasets and data layouts, as well as multiple storage types (SSD and HDD). 
+We conclude that the algorithm's contribution to the overall system performance is substantial, 
+especially when working with small objects and heavy-tailed (Zipf) distributions. For example, \sys\/ 
+improves the system write throughput by up to $40\%$, and reduces the tail read latency by up to 
+\inred{XX\%}. In parallel, it reduces the write amplification by up to \inred{XX\%}. Surprisingly, we see 
+that in most settings, disk I/O is \emph{not} the principal bottleneck. Rather, the memory management 
+overhead is more substantial: the improvements are highly correlated with GC reduction. 
 
-% Implementation
-In Section~\ref{sec:hbase} we  discuss on our implementation of  \sys\ in HBase, which is committed  as the default path in HBase 2.0. 
-\Idit{Say something interesting about this process?}
-% Evaluation
-In Section~\ref{sec:eval} we experiment with \sys\ in a range of  scenarios -- with SSD and HDD storage, with different numbers
-of regions, and different workloads. Surprisingly, we see that in virtually all settings, disk I/O is \emph{not} the principal performance bottleneck,
-but rather memory management overhead is more substantial. By flattening the memory store \sys\ reduces this overhead and improves overall performance by \inred{XX\% to XX\%}. In-memory compactions have minor impact on performance at best, but do reduce 
-write amplification by \inred{XX\% to XX\%}, which is important for extending disk life.
-
-\Idit{Need to think of a good summary sentence for here. }
-}
-
+\sys\/ got its name for periodically growing and shrinking the system's memory footprint, similarly 
+to accordion bellows. As our experiments show, this movement delivers fresh air, reduces congestion, 
+and improves the end-to-end system performance. 
 
 
