@@ -25,10 +25,11 @@ The main design goal is to improve write throughput, which LSM trees do by batch
 and periodically \emph{flushing} the memory  to disk. This way, random-access I/O is transformed to storage-friendly sequential I/O. 
 
 An LSM tree includes a \emph{memory store} in addition to the large \emph{disk store} consisting of a collection of files. 
-The memory store absorbs writes, and is periodically flushed to disk as a new file. Reads search for the data
+The memory store absorbs writes, and is periodically flushed to disk as a new immutable file. Reads search for the data
 in the memory store, as well as in the disk store. The number of files has adverse impact on read performance. 
 In order to reduce it, the system peridically runs a background \emph{compaction} process, which reads some files from 
-the disk and merges them into a single file while removing redundant (overwritten or deleted) entries.%. For further background, see Section~\ref{sec:background}.
+the disk and merges them into a single file while removing redundant (overwritten or deleted) entries.
+% For further background, see Section~\ref{sec:background}.
 
 % Compactions hurt 
 The performance of modern LSM stores is highly optimized, and yet as technology scales and real-time 
@@ -43,12 +44,12 @@ hardware~\cite{Hu:2009}.
 
 Enormous effort has been invested in designing compaction parameter tuning, scheduling, etc.~\cite{hbasetuning,
 universalcompaction,scylladbcompaction,Sears:2012}. However, all these approaches only deal with the aftermath
-of organizing the disk store as a sequence of files created upon memory store overflow events. Obviously, the less 
-often the memory overflows, the smaller the ensuing flush and compaction toll, and the better the overall 
-system performance. Memory expansion partially achieves this goal, but it has its limits. The RAM of a typical 
-production machine is 2-3 orders of magnitide smaller than disk space. Therefore, throughout its lifetime, a store 
-is flushed to disk hundreds to thousands of times, which entails many more compactions of varying extents.  
-Our work is motivated by stretching the time between flushes without incurring extra hardware resources, 
+of organizing the disk store as a sequence of files created upon memory store overflow events. Obviously, the more 
+frequently the memory overflows, the bigger the ensuing flush and compaction toll, and the lower the overall 
+system performance. Buying more memory alleviates the problem but cannot solve it completely for large datasets. 
+The RAM of a typical production machine is 2-3 orders of magnitide smaller than disk space. Therefore, throughout 
+its lifetime, a store is flushed to disk hundreds to thousands of times, which entails many more compactions of varying 
+extents.  Our work is motivated by stretching the time between flushes without extra hardware cost, 
 through better use of memory. 
 
 % The problem
@@ -63,16 +64,26 @@ are small, i.e., the metadata-to-data ratio is big~\cite{Wu2015}. Second, the ve
 no attempt to eliminate redundancies prior to flush, i.e., the store grows monotonically, independent in the workload. 
 This is especially wasteful for heavy-tailed distributions that are prevalent in production workloads~\cite{Devineni:2015}.
 
-
 % Drumroll 
-In Section~\ref{sec:accordion}
-we introduce \sys, a new memory management scheme for LSM trees.
-The principles behind \sys\ are 
+We introduce \sys, an algorithm for memory store management in LSM trees. %, which addresses these problems. 
+\sys\/ re-applies the classic LSM tree design principles to the memory store. Namely, it partitions this store
+ into a small dynamic segment that absorbs the recent writes, and a sequence of static segments created 
+ from previous dynamic segments by {\em in-memory flushes}. These segments have an optimized memory
+ layout (flat index), which reduces the memory overhead. Depending on the workload, the algorithm may 
+ perform {\em in-memory compactions}, which eliminate the redundant versions. In-memory flushes and 
+ compactions happen at a higher rate than their system-level siblings. Through careful memory management 
+ they let the system flush to disk less frequently, and consequently reduce the overall I/O and the CPU cycles
+ wasted on background maintenance of the LSM tree structure. In Java implementations (e.g., HBase), shrinking 
+ the dynamic component results in singnificant reduction of GC overhead. Finally, the reduction in disk writes  
+decelerates the hardware wearout period. 
+
+\remove{
 \begin{enumerate}
 \item \emph{in-memory compactions} can free up memory space to absorb more writes before the
 memory store needs to be flushed, thus reducing compactions and disk wear; and
 \item \emph{flattening} dynamic data structures into static buffers can reduce memory management overhead.
 \end{enumerate}
+
 
 % Implementation
 In Section~\ref{sec:hbase} we  discuss on our implementation of  \sys\ in HBase, which is committed  as the default path in HBase 2.0. 
@@ -84,7 +95,7 @@ but rather memory management overhead is more substantial. By flattening the mem
 write amplification by \inred{XX\% to XX\%}, which is important for extending disk life.
 
 \Idit{Need to think of a good summary sentence for here. }
-
+}
 
 
 
