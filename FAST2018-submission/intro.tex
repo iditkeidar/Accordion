@@ -25,7 +25,7 @@ The main design goal is to improve write throughput, which LSM trees do by batch
 and periodically \emph{flushing} the memory  to disk. This way, random-access I/O is transformed to storage-friendly sequential I/O. 
 
 An LSM tree includes a \emph{memory store} in addition to the large \emph{disk store} consisting of a collection of files. 
-The memory store absorbs writes, and is periodically flushed to disk as a new ordered file. Reads search for the data
+The memory store absorbs writes, and is periodically flushed to disk as a new file. Reads search for the data
 in the memory store, as well as in the disk store. The number of files has adverse impact on read performance. 
 In order to reduce it, the system peridically runs a background \emph{compaction} process, which reads some files from 
 the disk and merges them into a single file while removing redundant (overwritten or deleted) entries.%. For further background, see Section~\ref{sec:background}.
@@ -46,29 +46,23 @@ universalcompaction,scylladbcompaction,Sears:2012}. However, all these approache
 of organizing the disk store as a sequence of files created upon memory store overflow events. Obviously, the less 
 often the memory overflows, the smaller the ensuing flush and compaction toll, and the better the overall 
 system performance. Memory expansion partially achieves this goal, but it has its limits. The RAM of a typical 
-production machine is 2-3 orders of magnitide smaller than disk space. 
-%The memory store is typically configured to consume part of it (in HBase, $40\%$ by default). 
-Therefore, in its lifetime, a store is flushed to disk hundreds to thousands of times, which entails many more compactions. 
-Our work is motivated by stretching the time between flushes {\em in software}, through better use of memory. 
+production machine is 2-3 orders of magnitide smaller than disk space. Therefore, throughout its lifetime, a store 
+is flushed to disk hundreds to thousands of times, which entails many more compactions of varying extents.  
+Our work is motivated by stretching the time between flushes without incurring extra hardware resources, 
+through better use of memory. 
 
-%the memory store growth rate is indepe
+% The problem
+A memory store is an ordered map with {\em get} (point query), {\em scan} (range query) and {\em put} 
+(point update) and {\em delete} API's. Traditionally, it is implemented as a dynamic index over a collection of data items. 
+(e.g., HBase uses the standard Java concurrent skiplist\footnote{\small{\url{https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/ConcurrentSkipListSet.html}}}).
+The data is multi-versioned, i.e., every put creates a new immutable version of the data item it is applied to. 
+This implementation suffers from two drawbacks. First, the use of a big dynamic data structure entails 
+the abundance of auxiliary small objects and references, which inflate the in-memory index compared 
+to its compact on-disk sibling, sorted array. The overhead is most significant when the managed objects
+are small, i.e., the metadata-to-data ratio is big~\cite{Wu2015}. Second, the versioning mechanism makes 
+no attempt to eliminate redundancies prior to flush, i.e., the store grows monotonically, independent in the workload. 
+This is especially wasteful for heavy-tailed distributions that are prevalent in production workloads~\cite{Devineni:2015}.
 
-%In HBase, a major pain point is the occurrance of so-called \emph{major compactions}, which replace all the files of a given table.
-%Indeed, HBase manuals and tuning tips are often aimed at reducing or even avoiding major compactions altogether.
- %\footnote{\url{https://blogs.msdn.microsoft.com/ashish/2016/09/02}}.
-
-% Memory management
-%LSM trees can benefit from a large memory store, which absorbs many writes before each disk flush, 
-%and in turn delays the need for disk compactions, \Idit{Citations for this?} including major ones. 
-The memory store is \emph{dynamic}, i.e., constantly changes, and must support fast lookup by key. 
-It is therefore typically organized as a skip list
-\Idit{Citations for this?} or a similar data structure.  Unfortunately, managing a large dynamic data structure induces 
-non-negligble  overhead. 
-Moreover, 
-LSM-based data stores typically perform compactions only on disk and do not attempt to eliminate redundancies in the memory store.
-Given that data access patterns often follow heavy-tailed distributions like Zipf,  this means that many versions of popular objects are 
-wastefully kept in the in-memory data structure. 
-Our work is motivated by this management overhead and waste. 
 
 % Drumroll 
 In Section~\ref{sec:accordion}
