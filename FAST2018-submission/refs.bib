@@ -33,6 +33,23 @@
 howpublished = {\url{https://yahoohelpcommunity.tumblr.com/post/118485031125/}}
 }
 
+
+
+@misc{universalcompaction,
+title = {Universal Compaction},
+howpublished = {\url{https://github.com/facebook/rocksdb/wiki/Universal-Compaction}}
+}
+
+@misc{scylladbcompaction,
+title = {SSTable compaction and compaction strategies},
+howpublished = {\url{https://github.com/scylladb/scylla/wiki/SSTable-compaction-and-compaction-strategies}}
+}
+
+@misc{hbasetuning,
+title = {HBase Compaction Tuning Tips},
+howpublished = {\url{https://community.hortonworks.com/articles/52616/hbase-compaction-tuning-tips.html}}
+}
+
 @inproceedings{Omid2017,
 	author = {O. Shacham and F. Perez-Sorrosal and E. Bortnikov and E. Hillel and I. Keidar and I. Kelly and M. Morel and S. Paranjpye},
 	title = {Omid, Reloaded: Scalable and Highly-Available Transaction Processing}, 
@@ -40,6 +57,26 @@ howpublished = {\url{https://yahoohelpcommunity.tumblr.com/post/118485031125/}}
 	year = 2017,
 	location = {Santa Clara, CA} 
 }
+
+
+@inproceedings{Hu:2009,
+ author = {Hu, Xiao-Yu and Eleftheriou, Evangelos and Haas, Robert and Iliadis, Ilias and Pletka, Roman},
+ title = {Write Amplification Analysis in Flash-based Solid State Drives},
+ booktitle = {Proceedings of SYSTOR 2009: The Israeli Experimental Systems Conference},
+ series = {SYSTOR '09},
+ year = {2009},
+ isbn = {978-1-60558-623-6},
+ location = {Haifa, Israel},
+ pages = {10:1--10:9},
+ articleno = {10},
+ numpages = {9},
+ url = {http://doi.acm.org/10.1145/1534530.1534544},
+ doi = {10.1145/1534530.1534544},
+ acmid = {1534544},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+ keywords = {flash memory, solid state drives, solid state storage systems, write amplification},
+} 
 
 
 @inproceedings{Kulkarni2014LogicalPC,
@@ -73,6 +110,31 @@ year  = 2013,
 booktitle = {VLDB}
 }
 
+@misc{airstream,
+title = {Apache HBase at Airbnb},
+howpublished={\url{https://www.slideshare.net/HBaseCon/apache-hbase-at-airbnb}}
+}
+
+@misc{flurry,
+title = {HBase Operations in a Flurry},
+howpublished={\url{https://www.slideshare.net/HBaseCon/hbasecon-2015-hbase-operations-in-a-flurry}}
+}
+
+@misc{alibabahbase,
+title = {Offheap Read-Path in Production – The Alibaba story},
+howpublished={\url{https://blog.cloudera.com/blog/2017/03/offheap-read-path-in-production-the-alibaba-story/}}
+}
+
+
+@misc{tuningrocksdb,
+title = {RocksDB Tuning Guide},
+howpublished={\url{https://github.com/facebook/rocksdb/wiki/RocksDB-Tuning-Guide}}
+}
+
+@misc{pinteresthbase,
+title = {Zen: Pinterest's Graph Storage Service},
+howpublished={\url{https://www.slideshare.net/InfoQ/zen-pinterests-graph-storage-service}}
+} 
 
 @misc{cockroach, 
 title = {{CockroachDB}},
@@ -149,6 +211,25 @@ howpublished = {\url{http://opentsdb.net}}
  issn = {0734-2071},
  pages = {133--169},
 
+} 
+
+@article{O'Neil:1996,
+ author = {O'Neil, Patrick and Cheng, Edward and Gawlick, Dieter and O'Neil, Elizabeth},
+ title = {The Log-structured Merge-tree (LSM-tree)},
+ journal = {Acta Inf.},
+ issue_date = {1996},
+ volume = {33},
+ number = {4},
+ month = jun,
+ year = {1996},
+ issn = {0001-5903},
+ pages = {351--385},
+ numpages = {35},
+ url = {http://dx.doi.org/10.1007/s002360050048},
+ doi = {10.1007/s002360050048},
+ acmid = {230826},
+ publisher = {Springer-Verlag New York, Inc.},
+ address = {Secaucus, NJ, USA},
 } 
 
 
@@ -479,7 +560,26 @@ year         = {2011},
   year = 2008,
   pages = {729--738}
 }
-  
+ 
+@inproceedings{Sears:2012,
+ author = {Sears, Russell and Ramakrishnan, Raghu},
+ title = {bLSM: A General Purpose Log Structured Merge Tree},
+ booktitle = {Proceedings of the 2012 ACM SIGMOD International Conference on Management of Data},
+ series = {SIGMOD '12},
+ year = {2012},
+ isbn = {978-1-4503-1247-9},
+ location = {Scottsdale, Arizona, USA},
+ pages = {217--228},
+ numpages = {12},
+ url = {http://doi.acm.org/10.1145/2213836.2213862},
+ doi = {10.1145/2213836.2213862},
+ acmid = {2213862},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+ keywords = {log structured merge tree, merge scheduling, read amplification, read fanout, write amplification},
+} 
+[download]
+ 
 @inproceedings{Cooper:2010:BCS:1807128.1807152,
  author = {Cooper, Brian F. and Silberstein, Adam and Tam, Erwin and Ramakrishnan, Raghu and Sears, Russell},
  title = {Benchmarking Cloud Serving Systems with YCSB},
@@ -670,19 +770,6 @@ pages = {223--234}
   year      = {2012},
 }
 
-%Bigtable
-@article{Chang2008,
- author = {Chang, Fay and Dean, Jeffrey and Ghemawat, Sanjay and Hsieh, Wilson C. and Wallach, Deborah A. and Burrows, Mike and Chandra, Tushar and Fikes, Andrew and Gruber, Robert E.},
- title = {Bigtable: A Distributed Storage System for Structured Data},
- journal = {ACM Trans. Comput. Syst.},
- volume = {26},
- number = {2},
- month = jun,
- year = {2008},
- issn = {0734-2071},
- pages = {4:1--4:26},
-} 
-
 %HyperDex
 @inproceedings{Escriva2012,
  author = {Escriva, Robert and Wong, Bernard and Sirer, Emin G\"{u}n},
@@ -836,3 +923,40 @@ year         = {2011},
  address = {New York, NY, USA},
  keywords = {HBase, data, distributed systems, hadoop, hive, scalability, scribe},
 } 
+
+@inproceedings {Wu2015,
+author = {Xingbo Wu and Yuehai Xu and Zili Shao and Song Jiang},
+title = {LSM-trie: An LSM-tree-based Ultra-Large Key-Value Store for Small Data Items},
+booktitle = {2015 {USENIX} Annual Technical Conference ({USENIX} {ATC} 15)},
+year = {2015},
+isbn = {978-1-931971-225},
+address = {Santa Clara, CA},
+pages = {71--82},
+url = {https://www.usenix.org/conference/atc15/technical-session/presentation/wu},
+publisher = {{USENIX} Association},
+}
+
+@inproceedings{Devineni:2015,
+ author = {Devineni, Pravallika and Koutra, Danai and Faloutsos, Michalis and Faloutsos, Christos},
+ title = {If Walls Could Talk: Patterns and Anomalies in Facebook Wallposts},
+ booktitle = {Proceedings of the 2015 IEEE/ACM International Conference on Advances in Social Networks Analysis and Mining 2015},
+ series = {ASONAM '15},
+ year = {2015},
+ isbn = {978-1-4503-3854-7},
+ location = {Paris, France},
+ pages = {367--374},
+ numpages = {8},
+ url = {http://doi.acm.org/10.1145/2808797.2808880},
+ doi = {10.1145/2808797.2808880},
+ acmid = {2808880},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+} 
+
+@inproceedings {PNUTS2008,
+  author = {B. F. Cooper and R. Ramakrishnan and U. Srivastava and A. Silberstein and P. Bohannon and H.-A. Jacobsen and N. Puz and D. Weaver and R. Yerneni},
+  title = {PNUTS: Yahoo!�s Hosted Data Serving Platform},
+  booktitle = {VLDB},
+  year = 2008
+}
+
