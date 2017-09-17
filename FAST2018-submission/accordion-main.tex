@@ -82,20 +82,22 @@ Deployed-system paper
 
 \subsection*{Abstract}
 
-Log-sequenced-merge (LSM) trees emerged as technology of choice in building scalable, 
+Log-sequenced-merge (LSM) trees have emerged as the technology of choice for building scalable 
 write-intensive key-value storage systems. An LSM tree replaces random I/O with sequential 
-I/O by accumulating large batches of writes in-memory  prior to flushing to log-structured 
-storage; the latter is continuously re-organized in the background through a {\em compaction}
-process for efficiency of reads. Being inherent to the LSM design, compactions slow down
-the mainstream operations, primarily writes. 
+I/O by accumulating large batches of writes in a \emph{memory store} prior to flushing them to log-structured 
+disk storage; the latter is continuously re-organized in the background through a \emph{compaction}
+process for efficiency of reads. Though inherent to the LSM design, frequent compactions are a major pain point 
+because they slow down data store operations, primarily writes, and also increase disk wear.
 
-The frequency of compactions is directly connected to the efficiency of the memory store 
-management. We argue that memory stores are implemented  inefficiently in the state-of-the-art 
-systems, and present \sys\/ -- an algorithm that addresses this problem by re-applying
-the battle-tested LSM tree design principles to memory management. \sys\/ is implemented
-in production code of Apache HBase, in which it became the default deployment option 
+We argue that this pain point may be mitigated via better  organization of the memory store.
+%We argue that memory stores are implemented  inefficiently in the state-of-the-art 
+%systems, 
+We present \sys\ -- an algorithm that addresses this problem by re-applying
+the battle-tested LSM tree design principles to memory management. 
+\sys\ is implemented
+in the production code of Apache HBase, where it became the default deployment option 
 after extensive evaluation. We demonstrate \sys's double-digit performance gains versus 
-the baseline, and discuss some unexpected lessons learned. 
+the baseline HBase implementation, and discuss some unexpected lessons learned. 
 
 \remove{
 Distributed NoSQL data stores are now ubiquitously used for a wide range of Internet-scale applications, 
@@ -109,14 +111,14 @@ Apache HBase LSM-based NoSQL store.
 We present \sys, a new memory management scheme for LSM trees, which we have implemented and 
 committed in HBase 2.0.
 \sys\ reduces the size of the data structure holding the 
- top LSM level, namely, the dynamic memory component that absorbs writes, and utilizes the remainging 
+ top LSM level, namely, the dynamic memory component that absorbs writes, and utilizes the remaining 
 RAM capacity to store flat static data. This  saves space and also reduces  memory management overhead (garbage collection, etc.). 
 In addition, \sys\ allows for in-memory compactions (of the flat data), whereas existing LSM-based stores compact only on-disk data. 
 \sys\ thus produces  fewer disk writes, which reduces disk wear as well as disk compactions. 
 
 Perhaps surprisingly, our experiments show that memory management overhead is a more significant bottleneck than disk I/O in a
 wide range of deployments and workloads, and hence \sys\ reaps more performance benefits from flattening than from in-memory compactions,
-while the latter is important for extending disk lifes.
+while the latter is important for extending disk lives.
 }
 
 %========================
@@ -125,19 +127,20 @@ while the latter is important for extending disk lifes.
 \input{intro} 
 
 
-\section{Background: LSM Trees} \label{sec:background}
+\section{Background: LSM Trees and HBase} \label{sec:background}
 \input{background} 
 
 \section{\sys} \label{sec:accordion}
 \input{accordion} 
 
-\section{Empirical study} \label{sec:eval}
+\section{\sys\ Performance} \label{sec:eval}
 \input{eval}
 
-\section{Conclusion} \label{sec:conclusions}
+\section{Conclusions} \label{sec:conclusions}
 
 
-%\subsection*{Acknowledgments}
+\subsection*{Acknowledgments}
+Omitted for blind review.
 
 \newpage
 

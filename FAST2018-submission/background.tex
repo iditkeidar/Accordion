@@ -28,3 +28,17 @@ It then replaces the dynamic store with an empty one, and proceeds to write the 
 The get operation first checks the dynamic store, and if the key is not found there, proceeds to read the HStore, and 
 then the disk files, from recent to oldest, until the key is found or all files have been searched. 
 To expedite reads, data stores typically use a large RAM cache. 
+
+
+
+% The problem
+A memory store is an ordered map with {\em get} (point query), {\em scan} (range query) and {\em put} 
+(point update) and {\em delete} API's. Traditionally, it is implemented as a dynamic index over a collection of data items. 
+(e.g., HBase uses the standard Java concurrent skiplist\footnote{\small{\url{https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/ConcurrentSkipListSet.html}}}).
+The data is multi-versioned, i.e., every put creates a new immutable version of the data item it is applied to. 
+This implementation suffers from two drawbacks. First, the use of a big dynamic data structure entails 
+the abundance of auxiliary small objects and references, which inflate the in-memory index compared 
+to its compact on-disk sibling, sorted array. The overhead is most significant when the managed objects
+are small, i.e., the metadata-to-data ratio is big~\cite{Wu2015}. Second, the versioning mechanism makes 
+no attempt to eliminate redundancies prior to flush, i.e., the store grows monotonically, independent in the workload. 
+This is especially wasteful for heavy-tailed distributions that are prevalent in production workloads~\cite{Devineni:2015}.
