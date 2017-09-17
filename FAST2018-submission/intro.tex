@@ -94,8 +94,7 @@ improves the system write throughput by up to $40\%$, and reduces the tail read 
 that in most settings, disk I/O is \emph{not} the principal bottleneck. Rather, the memory management 
 overhead is more substantial: the improvements are highly correlated with  reduction in garbage collection time. 
 
-In summary, \sys\ grows and shrinks the system's memory footprint like accordion bellows. 
-As our experiments show, this movement delivers fresh air, reduces congestion, 
-and improves end-to-end system performance. 
-Section~\ref{sec:conclusions} concludes the paper.
+In summary, \sys\ grows and shrinks the system's memory footprint like accordion bellows, 
+giving it breathing room. Our experiments show that this significantly improves end-to-end system performance, 
+which led to the recent adoption of this solution in HBase. Section~\ref{sec:conclusions} concludes the paper.
 
