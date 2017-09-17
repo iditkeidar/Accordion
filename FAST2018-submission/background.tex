@@ -11,8 +11,9 @@ operations to store and retrieve items by their keys.
 \center
 \includegraphics[width=0.85\columnwidth]{LSM} 
 \caption{A typical LSM tree consists of a small memory store and a large disk store. 
-Put operations update a dynamic data store. A flush creates an immutable flat store  holding 
-data from the dynamic store, which is then written to disk.}
+Put operations update a dynamic data store. The memory store is double-buffered: 
+a flush freezes the memory component, making it immutable, and creates a new dynamic store.
+The immutable component is written to disk.}
 \label{fig:LSM}
 \end{figure}
 
@@ -20,39 +21,37 @@ data from the dynamic store, which is then written to disk.}
 % LSM trees - memory components
 Many of the leading data stores today are organized as LSM trees, which collect writes in a memory store 
 and periodically flush the memory into a disk store, as illustrated in Figure~\ref{fig:LSM}. 
-To allow puts to proceed in parallel with disk I/O, the memory store includes two data structures:
-\begin{enumerate}
-\item
-a \emph{dynamic store} -- called \emph{MemStore} in HBase -- where put operations can insert data; and  
-\item
-an immutable \emph{flat store} called \emph{HFile} in HBase.
-\end{enumerate}
-Both components are sorted by key, as are the files in the disk store. 
+The memory store is called \emph{MemStore} in HBase, and the disk store consists of multiple files
+called \emph{HFiles} in HBase.
+To allow puts to proceed in parallel with disk I/O, the memory store employs double buffering using two data structures: 
+The first is a  \emph{dynamic store} absorbing puts, and the second is 
+an \emph{immutable} previous version of the dynamic store, which is written to disk. 
+Both data structures are sorted by key, as are the files in the disk store. 
 
-% LSM puts
+% LSM puts and flushes
 Put operations are directed to the MemStore.
 When this store reaches a certain size limit, a flush occurs. 
-Flush first creates a flat version of the dynamic store for writing to disk -- this is simply a sorted buffer of the items from the skip list.  
-It then replaces the dynamic store with an empty one, and proceeds to write the flat store as a new file to disk.
+Flush first freezes the current dynamic store, making it immutable, and creates a new empty dynamic one.
+It then replaces the dynamic store with an empty one, and proceeds to write the immutable store as a new file to disk.
  To keep the number of files bounded, compactions merge multiple disk files into one, while eliminating redundancies 
  (deleted or overwritten items). 
 
 % LSM gets
-The get operation first checks the dynamic store, and if the key is not found there, proceeds to read the HFile, and 
-then the disk files, from recent to oldest, until either the key is found or all files have been searched. 
-To expedite reads, data stores typically use a large RAM cache. 
+The get operation first checks the dynamic store, and if the key is not found there, proceeds to read the HFiles. 
+Reads from different files are interleaved. 
+To expedite reads, LSM trees use a large RAM cache. 
 
 \paragraph{Memory organization.}
 % Regions
 Key-value stores achieve scalability by sharding data into units called \emph{regions}
 (also referred to as \emph{tablets}~\cite{Chang2008, PNUTS2008} or \emph{partitions}).
-HBase sharding is done by key-range.
-Each HBase region and column family pair is managed as an independent LSM tree, with its own MemStore and Hfile.
+HBase shards data by key-range.
+Each HBase region and column family pair is managed as an independent LSM tree, with its own MemStore and HFiles.
 %Partitioning provides {\em horizontal scalability} -- stretching the service across multiple servers.
 
 % Memory store
-The dynamic MemStore is traditionally implemented as a dynamic index over a collection of data items; 
-for example,  HBase uses the standard Java concurrent skiplist\footnote{\small{\url{https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/ConcurrentSkipListSet.html}}}).
+The  memory store is traditionally implemented as a dynamic index over a collection of data items; 
+for example,  HBase MemStore uses the standard Java concurrent skiplist\footnote{\small{\url{https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/ConcurrentSkipListSet.html}}}).
 Data is multi-versioned, i.e., every put creates a new immutable version of the data item it is applied to. 
 %
 This implementation suffers from two drawbacks. First, the use of a big dynamic data structure entails 
