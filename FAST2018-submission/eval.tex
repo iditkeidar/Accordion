@@ -54,16 +54,96 @@ Specifically, there is a negative linear correlation between their values on a l
 
 \paragraph{Write-only workload.}
 Each run creates an empty 50 regions table and then utilizes 12 threads to run 500 million update operations, each writing to all columns. Each such run is repeated 5 times. 
-We measure total  throughput and total volume of MB written to files.
+We measure total  throughput and total volume of MB written to files. We present here the performance results of the run with the median throughput among 5 runs.
 
-Figure~\ref{fig:throughput-ssd} depicts the lift in throughput \basic\ and \magic\ achieve over \none.
+Figures~\ref{fig:throughput-ssd} and~\ref{fig:throughput-hdd} depict the lift in throughput \basic, \magic, and \eager\ achieve over \none in ssd and hdd, respectively.
+Tables~\ref{fig:counters:ssd} and ~\ref{fig:counters:hdd} present the number of flushes, disk compactions and WAL files generated during the experiment.
+Figures~\ref{fig:volume-ssd} and~\ref{fig:volume-hdd} depict the write volume in every setting. 
+\magic demonstrates the tradeoff between throughput and write volume. As we increase the compaction threshold more in-memory compaction are triggered which degrades the throughput but at the same time reduces the write volume.
+At the extremes are \basic\ with the highest throughput and \eager with lowest write volume.
+\basic\ and \magic\ both run with $2\%$ active segment. In SSD the limit on the size of the pipeline is 5 and in HDD it is 4.
+\eager\ runs with $25\%$ active segments and limit of 2 on the size of the pipeline.
+The uniques thresholds for \magic\ are $0.2$, $0.35$, and $0.5$.
+
+
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/throughput-ssd.png}
-\caption{{\bf Latency speed-up in HDD.} 
+\caption{{\bf  Throughput measured in SSD.} Zipfian distribution.
 }
 \label{fig:throughput-ssd}
 \end{figure}
+
+\begin{figure}[htb]
+\includegraphics[width=\figw]{Figs/throughput-hdd.png}
+\caption{{\bf  Throughput measured in HDD.} Zipfian distribution. 
+}
+\label{fig:throughput-hdd}
+\end{figure}
+
+
+\begin{figure}[!t]
+  \centering
+  
+  \begin{subfigure}[tb]{\columnwidth}
+      \centering\small
+    \begin{tabular}{|c|c|c|c|}
+      \hline
+      Strategy & $\#$flushes & $\#$compactions & $\#$WAL files\\
+      %\hline
+      \hline
+      \none & 1468	&524&	789 \\
+\basic & 1224&	355&	806 \\
+\magic\ 0.50 &922&	309&	678 \\
+\magic\ 0.35 & 754&	261&	615 \\
+\magic\ 0.20 & 631	&209	&533 \\
+\eager\ & 695	&242&	490 \\
+      \hline
+    \end{tabular}
+	\caption[]{SSD}
+    \label{fig:counters:ssd}
+  \end{subfigure}
+  
+  \begin{subfigure}[t]{\columnwidth}
+    \centering\small
+    \begin{tabular}{|c|c|c|c|c|}
+      \hline
+        Strategy & $\#$flushes & $\#$compactions & $\#$WAL files\\
+      %\hline
+      \hline
+      \none & 1504 & 548 & 743 \\
+\basic & 1210 & 443 & 808 \\
+\magic\ 0.50 & 879 & 316 & 695 \\
+\magic\ 0.35 & 711 & 248 & 650 \\
+\magic\ 0.20 & 630 & 216 & 556 \\
+\eager\ & 667 & 242 & 536 \\
+      \hline
+    \end{tabular}
+	\caption[]{HDD}
+    \label{fig:counters:hdd}
+  \end{subfigure}
+
+
+  \caption{Number of flushes, disk compactions, and WAL files created in different settings}
+  \label{fig:counters}
+\end{figure}
+
+
+\begin{figure}[htb]
+%\includegraphics[width=\figw]{Figs/volume-ssd.png}
+\caption{{\bf  Write volume in SSD.} Zipfian distribution.
+}
+\label{fig:volume-ssd}
+\end{figure}
+
+\begin{figure}[htb]
+%\includegraphics[width=\figw]{Figs/volume-hdd.png}
+\caption{{\bf  Write volume in HDD.} Zipfian distribution.
+}
+\label{fig:volume-hdd}
+\end{figure}
+
+
 
 
 \paragraph{Mixed workload.}
@@ -76,11 +156,11 @@ This client utilizes 12 threads to run update operations while we measure the re
 Both reads and background traffic are chosen from a zipfian distribution.
 Each such run is repeated 3 times. 
 
-Figure~\ref{fig:latency-speedup-hdd} depicts the latency speed-up \basic\ and \magic\ achive over \none.
+Figure~\ref{fig:latency-speedup-hdd} depicts the latency speed-up \basic\ and \magic\ achieve over \none.
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/latency-speedup-hdd.png}
-\caption{{\bf Throughput measured in SSD.} 
+\caption{{\bf Latency speed-up in HDD.} 
 }
 \label{fig:latency-speedup-hdd}
 \end{figure}
@@ -104,13 +184,20 @@ When the dynamic fraction is less than $10\%$ it is clear that merging it into t
 The alternative is to enable several segments to wait in the pipeline before they are merged to a single segment. This helps with creating new index less frequently.
 On the flip side, each segment in the pipeline calls for a separate scanner during read operations which can degrade their performance.
 %Hence, we run the same experiments as explained above, varying the limit for the size of pipeline.
-Figure~\ref{fig:pipeline} depicts the throughput results as a function of the pipeline size. Peak throughput is with XX entries in the pipeline.
+Figures~\ref{fig:pipeline-1-ssd} and~\ref{fig:pipeline-1-hdd} depict the throughput results as a function of the pipeline size. Peak throughput is with XX entries in the pipeline.
 
 \begin{figure}[htb]
-\includegraphics[width=\figw]{Figs/pipeline-1.png}
-\caption{{\bf Pipeline size tuning.} 
+\includegraphics[width=\figw]{Figs/pipeline-1-ssd.png}
+\caption{{\bf Pipeline size tuning - SSD.} 
 }
-\label{fig:pipeline}
+\label{fig:pipeline-1-ssd}
+\end{figure}
+
+\begin{figure}[htb]
+\includegraphics[width=\figw]{Figs/pipeline-1-hdd.png}
+\caption{{\bf Pipeline size tuning - HDD.} 
+}
+\label{fig:pipeline-1-hdd}
 \end{figure}
 
 With a different experimental setup the tuning results are different.
