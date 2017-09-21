@@ -1,19 +1,12 @@
 
 % NoSQL stores are popular
-NoSQL key-value data stores such as Apache HBase~\cite{hbase} have become extremely popular over the last decade, 
+Persistent NoSQL key-value (KV-)stores such as Apache HBase~\cite{hbase} have become extremely popular over the last decade, 
 and the range of applications for which they are used continuously increases. A small sample of  recently 
 published use cases includes massive-scale online analytics (Airbnb/Airstream\footnote{\small{\url{https://www.slideshare.net/HBaseCon/apache-hbase-at-airbnb}}}, 
-Yahoo/Flurry\footnote{\small{\url{https://www.slideshare.net/HBaseCon/hbasecon-2015-hbase-operations-in-a-flurry}}}), e-commerce product search 
+Yahoo/Flurry\footnote{\small{\url{https://www.slideshare.net/HBaseCon/hbasecon-2015-hbase-operations-in-a-flurry}}}), product search 
 and recommendation (Alibaba~\cite{alibabahbase}), 
 graph storage (Facebook/Dragon\footnote{\small{\url{https://code.facebook.com/posts/1737605303120405/dragon-a-distributed-graph-query-engine/}}}, 
 Pinterest/Zen\footnote{\small{\url{https://www.slideshare.net/InfoQ/zen-pinterests-graph-storage-service}}}), and many more. 
-
-\remove{ 
-Similarly, Imgur uses HBase to power its notifications system\footnote{\url{https://dzone.com/articles/why-imgur-dropped-mysql-in-favor-of-hbase}};
-Spotify uses HBase as base for Hadoop and machine learning jobs\footnote{\url{https://apachebigdata2015.sched.com}};
-web mail metadata and search serving (Yahoo Mail), 
-\footnote{\small{HBaseCon 2017 -- \url{http://hbase.apache.org/www.hbasecon.com}}}. 
-}
 
 % LSM trees optimize disk I/O 
 The leading approach for implementation of write-intensive key-value storage is \emph{log-structured merge (LSM)} trees~\cite{O'Neil:1996}.
@@ -52,9 +45,8 @@ of organizing the disk store as a sequence of files created upon memory store ov
 address memory management. And yet, the amount of data written by memory flushes  
 directly impacts the ensuing flush and compaction toll. 
 While today's state-of-the-art LSM trees gravitate towards using large memory 
-stores that make flushes less frequent\footnote{For example, the HBase default memory store size is 128MB.}, 
+stores that make flushes less frequent (e.g., the HBase default memory store size is 128MB), 
 they do not physically delete removed or overwritten data,
-% or employ in-memory compaction, 
 and therefore do not reduce the amount of data written to disk.
 Moreover, state-of-the-art memory stores are organized as dynamic data structures consisting of small objects,
 which becomes inefficient when the store size increases, in particular in managed languages like Java. 
@@ -63,22 +55,11 @@ which becomes inefficient when the store size increases, in particular in manage
 We introduce \sys, an algorithm for memory store management in LSM trees. 
 \sys\ re-applies the classic LSM tree design principles to the memory store. Namely, it partitions this store
  into a small dynamic segment that absorbs writes, and a sequence of static segments created 
- from previous dynamic segments by \emph{in-memory flushes}; memory flushes occur at a higher rate
+ from previous dynamic segments by \emph{in-memory flushes}; the latter occur at a higher rate
  than their disk counterparts.  The static segments have an optimized memory
- layout (flat index), which reduces the memory overhead. Depending on the workload, the algorithm may 
- perform \emph{in-memory compactions}, which eliminate redundant (removed or over-written) data before 
- it is written to disk. 
- Section~\ref{sec:accordion}  fleshes out the implementation details. 
- 
- \remove{
- In-memory flushes and compactions occur at a higher rate than their system-level siblings. They allow the system 
- flush to disk less frequently, and consequently reduce the overall I/O and the CPU cycles wasted on background maintenance
-  of the LSM tree structure. In Java implementations (e.g., HBase), shrinking 
- the dynamic component results in significant reduction of GC overhead. Furthermore, since the static indices 
- are flat, the system can place them in off-JVM heap memory, thereby exploiting more RAM. Finally, reducing the 
- disk I/O decelerates the hardware wear-out period. 
-% To Do: say something in conclusions about off heap
-}
+ layout (flat index), which reduces the footprint. Depending on the workload, the algorithm may 
+ perform \emph{in-memory compactions}, which eliminate redundant %(removed or overwritten) 
+ data before it is written to disk. Section~\ref{sec:accordion} fleshes out the algorithm details. 
 
 % Status
 \sys\ is implemented in HBase production code; it is generally available starting the HBase 2.0 release. 
@@ -94,7 +75,7 @@ improves the system write throughput by up to $40\%$, and reduces the tail read 
 that in most settings, disk I/O is \emph{not} the principal bottleneck. Rather, the memory management 
 overhead is more substantial: the improvements are highly correlated with  reduction in garbage collection time. 
 
-In summary, \sys\ grows and shrinks the system's memory footprint like accordion bellows, 
-giving it breathing room. Our experiments show that this significantly improves end-to-end system performance, 
+In summary, \sys\ grows and shrinks the system's memory footprint like accordion bellows, giving it breathing 
+room. Our experiments show that it significantly improves end-to-end system performance and reduces disk wear, 
 which led to the recent adoption of this solution in HBase. Section~\ref{sec:conclusions} concludes the paper.
 
