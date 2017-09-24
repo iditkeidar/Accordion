@@ -8,29 +8,32 @@ and implementation details in Section~\ref{ssec:impl-details}.
 \begin{figure}[tbh]
 \center
 \includegraphics[width=\columnwidth, trim={0 1cm 0 1cm}, clip]{Accordion} 
-\caption{Accordion's compacting memory store architecture. The memory store includes a small dynamic active store and a pipeline of flat stores. }
+\caption{Accordion's compacting memory store architecture. The memory store includes a small dynamic active segment 
+and a pipeline of flat segments. }
 \label{fig:accordion}
 \end{figure}
 
 \sys\ introduces a \emph{compacting} memory store to the LSM tree design framework. In contrast to the traditional memory store, 
 which maintains RAM-resident data in a single monolithic data structure, \sys\ manages data as a \emph{pipeline} of 
-\emph{segments} ordered by creation time. At all times, the most recent segment, called \emph{active}, is mutable and absorbs 
- put operations. The rest of the segments are immutable. Get and scan operations retrieve data from all  segments, 
- similarly to a traditional LSM tree read from multiple files. Figure~\ref{fig:accordion} illustrates the \sys\ architecture. 
-
-The \sys\ architecture is specified using two adjustable parameters:
+\emph{segments} ordered by creation time. At all times, the most recent segment, called \emph{active}, is mutable;
+it absorbs  put operations. The rest of the segments are immutable. Get and scan operations retrieve data from all  segments, 
+ similarly to a traditional LSM tree read from multiple files. 
+ 
+ Figure~\ref{fig:accordion} illustrates the \sys\ architecture. It is parameterized by two values:
 \begin{itemize}
 \item  $\rho$ -- the fraction of the memory store allocated to the active segment; and 
-\item $s$ -- the number of segments in the pipe.
+\item $s$ -- the upper bound on the number of immutable segments in the pipeline. 
 \end{itemize}
 
-Typical values of $\rho$ that work well in our experiments are quite small -- \inred{ $0.02-0.05$}, as are the most effective values
-of $s$ -- \inred{$1-3$}. 
+\noindent
+As our experiments show (Section~\ref{sec:eval}), the most effective parameter values are quite small -- 
+(\inred{$0.02 \leq \rho \leq 0.05$}, and \inred{$1 \leq s \leq 3$}).
 
+The memory store dynamics are as follows. 
 Once the active segment grows to a $\rho$ fraction of the memory store's size bound, an \emph{in-memory flush} is invoked.
 The flush makes the active segment  immutable and adds it to the pipeline; it creates a new active segment to replace it. 
-A background process periodically shrinks the pipeline by applying 
-one or more \emph{in-memory compaction} mechanisms: 
+Once the number of immutable segments exceeds $s$, a background \emph{in-memory compaction} is invoked to shrink
+the pipeline back. It applies one or more mechanisms: 
 \begin{enumerate}
 \item {\em Flattening of intra-segment search indices.} Replaces dynamic segment indices such as skiplists by 
 compact ordered arrays, which are suitable for immutable data. 
@@ -41,28 +44,23 @@ the index can be relocated to off-heap (unmanaged) memory, which can improves pe
 through reduced garbage collection jitter~\cite{alibabahbase}. 
 }
 \item {\em Merging multiple segments' search indices.} 
-Creates a single index covering data that resides in multiple segments. 
-This is a lightweight process that does not eliminate redundant data versions 
-and hence does not involve comparisons or physical data copy. 
-\item  {\em Merging multiple segments' data.} Extends the above with redundant data elimination -- creates
-a flat index with no redundancies. 
+Replaces multiple segments with one by creating a single index covering data that resides 
+in the original segments. This is a lightweight process that does not eliminate redundant 
+data versions, and hence does not involve comparisons or physical data copy. 
+\item  {\em Merging multiple segments' data.} Extends the above with redundant data elimination --
+creates a flat index with no redundancies, and disposes the redundant data cells. 
 \remove{ % Slab stuff omitted due to lack of evaluation
 In case the memstore manages its cell data storage internally, the surviving cells are relocated
 to new slabs; otherwise, the redundant cells are simply de-referenced, and later garbage-collected.    
 }
 \end{enumerate} 
-The choice of compaction mechanisms to employ is guided by the policies described below.
+The choice of compaction mechanisms to employ is guided by the policies described in Section~\ref{ssec:policies}.
 
-Flushes to disk work the same way as in a standard LSM tree, 
-\inred{from the oldest immutable component?}, and all 
-redundancies are eliminated before writing to disk.
-
- 
- 
-%Summing up, in contrast with traditional memstores that can only grow between disk flushes, compacting memstores 
-%can both expand and contract, resembling the movement of accordion bellows. 
-%In-memory compactions that reduce the number of immutable segments bound the tail read latencies, as most reads access 
-%a few segments. 
+Flushes to disk work the same way as in a standard LSM tree. A disk flush freezes the list of immutable segments 
+to be written to storage, and removes them from the pipeline. The background flush process merges the frozen 
+segments while eliminating the redundancies, and streams the result to a new file. Note that the disk flush process
+may happen concurrently to in-memory compaction. In that case, the latter is aborted. This behavior is absolutely
+valid since in-memory compaction it is an optimization that may be retried later.
 
 \subsection{Compaction Policies} \label{ssec:policies}
 
@@ -93,7 +91,6 @@ The rationale for using \emph{success\_probability} is that its prediction becom
 compactions become more important because the component is bigger and more space can be saved.
 \end{description}
 
-
 \subsection{Implementation Details} \label{ssec:impl-details}
 
 A compacting memstore is comprised from the active segment and a double-ended queue (pipeline) of inactive segments. 
@@ -111,6 +108,6 @@ lost. The scan algorithm filters out the duplicates.
 
 In-memory compaction is a read-modify-write operation, which swaps one or more segments in the pipeline 
 with a new segment built from their data. This operation's atomicity is guaranteed by compare-and-swap (CAS), 
-which flips pipeline version only if the latter did not change since the compaction started. Note that it is acceptable
-for in-memory compaction to fail sometimes because it is an optimization that may be retried later. 
+which flips pipeline version only if the latter did not change since the compaction started.  For example, in-memory
+compaction fails if a disk flush concurrently removes some segments from the pipeline (Section~\ref{ssec:overview}). 
 
