@@ -143,6 +143,82 @@ The uniques thresholds for \magic\ are $0.2$, $0.35$, and $0.5$.
 \label{fig:volume-hdd}
 \end{figure}
 
+Figures~\ref{fig:throughput-ssd-uniform} and~\ref{fig:throughput-hdd-uniform} depict the throughput results with uniform distribution in ssd and hdd, respectively.
+Tables~\ref{fig:counters-uniform:ssd} and ~\ref{fig:counters-uniform:hdd} present the number of flushes, disk compactions and WAL files generated during the experiment.
+Figures~\ref{fig:volume-ssd-uniform} and~\ref{fig:volume-hdd-uniform} depict the write volume in every setting. 
+
+
+\begin{figure}[htb]
+\includegraphics[width=\figw]{Figs/throughput-ssd-uniform.png}
+\caption{{\bf  Throughput measured in SSD.} Uniform distribution.
+}
+\label{fig:throughput-ssd-uniform}
+\end{figure}
+
+\begin{figure}[htb]
+\includegraphics[width=\figw]{Figs/throughput-hdd-uniform.png}
+\caption{{\bf  Throughput measured in HDD.} Uniform distribution. 
+}
+\label{fig:throughput-hdd-uniform}
+\end{figure}
+
+
+\begin{figure}[!t]
+  \centering
+  
+  \begin{subfigure}[tb]{\columnwidth}
+      \centering\small
+    \begin{tabular}{|c|c|c|c|}
+      \hline
+      Strategy & $\#$flushes & $\#$compactions & $\#$WAL files\\
+      %\hline
+      \hline
+\none & 1705 & 288 & 632 \\
+\basic & 1416 & 220 & 577 \\
+\magic\ 0.20 & 1402 & 219 & 586 \\
+\eager\ & 1382 & 255 & 578 \\
+       \hline
+    \end{tabular}
+	\caption[]{SSD}
+    \label{fig:counters-uniform:ssd}
+  \end{subfigure}
+  
+  \begin{subfigure}[t]{\columnwidth}
+    \centering\small
+    \begin{tabular}{|c|c|c|c|c|}
+      \hline
+        Strategy & $\#$flushes & $\#$compactions & $\#$WAL files\\
+      %\hline
+      \hline
+     \none & 1736	&570&	739 \\
+\basic & 1408&	458&	742 \\
+\magic\ 0.20 & 1413	&470	&770 \\
+\eager\ & 1423	&476&	760 \\
+      \hline
+    \end{tabular}
+	\caption[]{HDD}
+    \label{fig:counters-uniform:hdd}
+  \end{subfigure}
+
+
+  \caption{Number of flushes, disk compactions, and WAL files created in different settings with uniform distribution}
+  \label{fig:counters-uniform}
+\end{figure}
+
+
+\begin{figure}[htb]
+%\includegraphics[width=\figw]{Figs/volume-ssd-uniform.png}
+\caption{{\bf  Write volume in SSD.} Zipfian distribution.
+}
+\label{fig:volume-ssd-uniform}
+\end{figure}
+
+\begin{figure}[htb]
+%\includegraphics[width=\figw]{Figs/volume-hdd-uniform.png}
+\caption{{\bf  Write volume in HDD.} Zipfian distribution.
+}
+\label{fig:volume-hdd-uniform}
+\end{figure}
 
 
 
