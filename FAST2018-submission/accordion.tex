@@ -21,13 +21,13 @@ it absorbs  put operations. The rest of the segments are immutable. Get and scan
  
  Figure~\ref{fig:accordion} illustrates the \sys\ architecture. It is parameterized by two values:
 \begin{itemize}
-\item  $\rho$ -- the fraction of the memory store allocated to the active segment; and 
-\item $s$ -- the upper bound on the number of immutable segments in the pipeline. 
+\item  $A$ -- the fraction of the memory store allocated to the active segment; and 
+\item $S$ -- the upper bound on the number of immutable segments in the pipeline. 
 \end{itemize}
 
 \noindent
 As our experiments show (Section~\ref{sec:eval}), the most effective parameter values are quite small -- 
-(\inred{$0.02 \leq \rho \leq 0.05$}, and \inred{$1 \leq s \leq 3$}).
+(\inred{$0.02 \leq A \leq 0.05$}, and \inred{$1 \leq S \leq 3$}).
 
 The memory store dynamics are as follows. 
 Once the active segment grows to a $\rho$ fraction of the memory store's size bound, an \emph{in-memory flush} is invoked.
@@ -46,7 +46,7 @@ through reduced garbage collection jitter~\cite{alibabahbase}.
 \item {\em Merging multiple segments' search indices.} 
 Replaces multiple segments with one by creating a single index covering data that resides 
 in the original segments. This is a lightweight process that does not eliminate redundant 
-data versions, and hence does not involve comparisons or physical data copy. 
+data versions, and hence does not involve physical data copy. 
 \item  {\em Merging multiple segments' data.} Extends the above with redundant data elimination --
 creates a flat index with no redundancies, and disposes the redundant data cells. 
 \remove{ % Slab stuff omitted due to lack of evaluation
@@ -66,17 +66,29 @@ valid since in-memory compaction it is an optimization that may be retried later
 
 We implement three in-memory compaction policies: 
 \begin{description}
-\item[\basic] (low-overhead). Once a segment becomes immutable, flatten its index. Once the pipeline size exceeds $s$, 
-merge all segment indices into one.  
+\item[\basic] (low-overhead). Once a segment becomes immutable, flattens its index. Once the pipeline size exceeds $s$, 
+merges all segment indices into one.  
 \item[\eager] (high-overhead, high-reward under self-similar workloads). 
 In addition to \basic\/ mechanisms, eliminates data redundancies in all pipeline segments.
-\item[\adp] (the best of all worlds). A heuristic that chooses whether to apply data compaction (as in \eager) or not (as in \basic) 
-based on the level of redundancy in the data store and the outcome of recent compactions. 
+\item[\adp] (the best of all worlds)\footnote{\small{Not committed to production code yet.}}. A heuristic that chooses 
+whether to apply data compaction (as in \eager) or not (as in \basic) based on the level of redundancy in the data 
+and the perceived cost-effectiveness of compaction. Works at store level, i.e., triggers redundancy elimination 
+only for those stores where positive impact is expected. 
 \end{description}
 
-To decide whether to compact a segment or not or not, \adp\ relies on two values:
+\adp\/ triggers in-memory compaction with probability $t$ if the fraction of redundant keys $r$ exceeds a parameter 
+threshold $R$. In this context, $t$ is the throttling factor, which captures the compaction's worthiness. It starts from 
+$T=0.5$, grows exponentially by $2\%$ with the number of in-memory flushes, and is reset back to $T$ upon
+disk flush. The rationale is that compactions become more effective as the memory store grows bigger. 
+
+$r$ is the complement of the ratio of unique keys in the memory store, denoted  $u$. The latter is approximated 
+as a the fraction of unique keys produced by the process of merging the segment indexes during the previous compaction. 
+Note that $u$ is an estimate, since compactions do not cover the current active segment. However, since the latter is a small 
+portion of the memory store, the error is insignificant. 
+
+\remove{
 \begin{description}
-\item[\emph{unique\_ratio}] -- an estimate of the fraction of unique keys out of the total number of items in the segment. 
+\item[\emph{Unique ratio}] $u$ -- an estimate of the fraction of unique keys out of the total number of items in the segment. 
 This value is estimated by counting duplicates encountered during merge, which does not induce extra overhead since
 merged items are compared in any case. The \emph{unique\_ratio}  is an under-estimate of the actual redundancy because it does not 
 take into consideration duplicates that were already present during flattening. Nevertheless, since the active component
@@ -90,6 +102,7 @@ and otherwise decrease it. The \emph{success\_probability} is reset to its defau
 The rationale for using \emph{success\_probability} is that its prediction becomes more accurate with time, whence 
 compactions become more important because the component is bigger and more space can be saved.
 \end{description}
+}
 
 \subsection{Implementation Details} \label{ssec:impl-details}
 
