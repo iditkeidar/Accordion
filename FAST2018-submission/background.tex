@@ -27,24 +27,27 @@ The immutable buffer is written to disk in the background.}
 \end{figure}
 
 \paragraph{Data Management}
-KV-stores achieve scalability by sharding tables into range partitions 
-by row key. A shard is called {\em region\/} in HBase (\emph{tablet} in Bigtable~\cite{Chang2008}). 
+KV-stores achieve scalability by sharding tables into range partitions by row key. 
+A shard is called {\em region\/} in HBase (\emph{tablet} in Bigtable). 
 A region is a collection of \emph{stores}, each associated with a column family. 
 Each store is backed by a collection of files sorted by row key, called \emph{HFile}'s in HBase 
-(\emph{sst} files in Bigtable). HBase is layered on top of Hadoop Filesystem (HDFS), which 
-replicates data for availability. 
+(\emph{sst files} in Bigtable). 
+
+In production, HBase is typically layered on top of Hadoop Distributed Filesystem (HDFS), 
+which provides reliable file storage abstraction. HDFS and HBase normally share the same hardware. 
+Both scale horizontally to thousands of nodes. HDFS replicates data for availability (3-way by default). 
+It is optimized for very large files (the default block size is $64$MB).
 
 Data access in HBase is provided through {\em region servers} (analogous to {\em tablet servers}
 in Bigtable). Each region server controls multiple stores (tens to hundreds in production settings). 
-For locality of access, the HBase management plane tries to lay out the HFile's in a way that their 
-primary replicas are colocated with the region servers that control them. Production HBase clusters
-consist of hundreds to thousands of nodes. 
+For locality of access, the HBase management plane tries to lay out the HFile's in HDFS such that 
+their primary replicas are colocated with the region servers that control them. 
 
 \paragraph{LSM trees}
 Each store is organized as log-sequence-merge (LSM) tree, which collects writes in a memory store 
 (\emph{MemStore} in HBase), and periodically flushes the memory into a disk store, as illustrated in 
 Figure~\ref{fig:LSM}. Each flush creates a new immutable HFile, ordered by row key for query efficiency. 
-HDFS is optimized for very large files (its default block size is $64$MB), hence flushes are relatively infrequent. 
+HFile's are created big, hence flushes are relatively infrequent. 
 
 To allow puts to proceed in parallel with I/O, MemStore employs double buffering. 
 It maintains a dynamic \emph{active} buffer absorbing puts, and a static \emph{frozen}
