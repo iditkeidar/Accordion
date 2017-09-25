@@ -1,7 +1,9 @@
 
 % Functionality
-Modern key-value stores, including HBase, follow the design of Google's Bigtable~\cite{Chang2008}.
-This section sketches their common design principles and terminology. 
+HBase is a distributed key-value store that is part of the open source Hadoop technology suite. 
+It is implemented in Java. Similarly to other modern KV-stores, HBase follows the design of 
+Google's Bigtable~\cite{Chang2008}. We sketch their common design principles 
+and terminology. 
 
 \paragraph{Data Layout}
 KV-stores hold data items (referred to as \emph{rows}) identified by unique 
@@ -40,8 +42,8 @@ It is optimized for very large files (the default block size is $64$MB).
 
 Data access in HBase is provided through {\em region servers} (analogous to {\em tablet servers}
 in Bigtable). Each region server controls multiple stores (tens to hundreds in production settings). 
-For locality of access, the HBase management plane tries to lay out the HFile's in HDFS such that 
-their primary replicas are colocated with the region servers that control them. 
+For locality of access, the HBase management plane (\emph{master server}) tries to lay out the 
+HFile's in HDFS such that their primary replicas are colocated with the region servers that control them. 
 
 \paragraph{LSM trees}
 Each store is organized as log-sequence-merge (LSM) tree, which collects writes in a memory store 
@@ -70,10 +72,16 @@ As new data gets flushed to HFile's, the old log files become redundant; the sys
 them in the background. On the other hand, HLog growth beyond boundary may trigger flushes. 
 Since the logged data is only required at recovery time and is only scanned sequentially, the HLog's 
 may be stored on slower devices than the HFile's in production (e.g., HDD's vs SSD's),
-through the HDFS heterogeneous storage configuration. 
+through the HDFS heterogeneous storage configuration. Real-time applications sometimes 
+trade durability for speed, by aggregating multiple log records in memory prior to writing 
+them in a batch to HLog in the background. 
 
 To keep the number of HFile's per store bounded, \emph{compactions} merge multiple files 
-into one, while eliminating redundant (overwritten) versions. Most compactions are \emph{minor}, 
+into one, while eliminating redundant (overwritten) versions. If compactions cannot keep up
+with the flush rate and the number if files per store reaches the limit, HBase may either throttle 
+or totally block the puts until the compactions succeed. 
+
+Most compactions are \emph{minor}, 
 in the sense that they merge part of the HFile's. \emph{Major} compactions merge all the region's 
 HFile's. Because they possess the global view of the data, major compactions also eliminate 
 {\em tombstone} versions that indicate row deletions. Typically, major compactions incur huge 
