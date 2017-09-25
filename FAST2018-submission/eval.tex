@@ -7,7 +7,11 @@ We study HBase throughput and latency, under a variety of workloads.
 To reason about the results, we explore additional signals -- I/O statistics, 
 GC metrics, etc.  
 
+We present the experiment setup in Section~\ref{ssec:setup}, and the evaluation 
+results in Section~\ref{ssec:results}. 
+
 \subsection{Experiment Setup}
+\label{ssec:setup}
 
 Our experiments exploit two clusters with different hardware types. The first cluster consists of five 12-core Intel Xeon 5 
 machines with 48GB RAM and 3TB SSD storage. The second cluster consists of five 8-core Intel Xeon E5620 servers 
@@ -37,6 +41,9 @@ of 100M items. We experiment with two distributions: heavy-tailed (Zipf) and uni
 is used for put-only workloads). The Zipf distribution is generated following the description 
 in~\cite{Gray:1994:QGB:191839.191886}, with $\theta=0.8$.% (YCSB standard).
 
+\subsection{Evaluation Results}
+\label{ssec:results}
+
  \remove{ 
 
 
@@ -49,18 +56,6 @@ The results of the following experiments are presented:
 (2) write-only workload - comparing all 4 strategies,
 (3) mixed read-write workload - showing reduction in read latencies of \basic\ and \magic\ strategies with respect to \none.
 (4) evaluating different settings of the \basic\ strategy in order to find its optimal configuration,
-
-
-
-
- 
-
-The traffic is driven by a client running the popular YCSB benchmark~\cite{Cooper:2010:BCS:1807128.1807152}. 
-We run write-only and mixed read-write workload where keys are chosen from either a zipfian or a uniform distribution over a data set of 100 millions items.
-In all the experiments we create a table with 4 columns (in a single column family) which is pre-split into 50 regions. 
-Each update operation writes 25 Bytes values to all 4 columns of a single key, namely writing 100 Bytes of data. To increase the load updates are batched at the client side; buffer size is 10KB
-Each read operation reads a single column of a single key (a cell).
-
 
 \paragraph{GC overhead.}
 
