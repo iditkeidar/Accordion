@@ -70,7 +70,7 @@ In Section~\ref{sec:eval} we experiment with the \sys\ HBase implementation in a
 We study production-size datasets and data layouts, as well as multiple storage types (SSD and HDD). 
 We conclude that the algorithm's contribution to the overall system performance is substantial, 
 especially when working with small objects and heavy-tailed (Zipf) distributions. For example, \sys\/ 
-improves the system write throughput by up to $40\%$, and reduces the tail read latency by up to 
+improves the system write throughput by up to $\inred{40\%}$, and reduces the tail read latency by up to 
 \inred{XX\%}. At the same time, it reduces the write amplification by up to \inred{XX\%}. Surprisingly, we see 
 that in most settings, disk I/O is \emph{not} the principal bottleneck. Rather, the memory management 
 overhead is more substantial: the improvements are highly correlated with  reduction in garbage collection time. 

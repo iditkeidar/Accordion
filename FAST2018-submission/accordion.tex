@@ -69,7 +69,7 @@ We implement three in-memory compaction policies:
 \item[\basic] (low-overhead). Once a segment becomes immutable, flattens its index. Once the pipeline size exceeds $s$, 
 merges all segment indices into one.  
 \item[\eager] (high-overhead, high-reward under self-similar workloads). 
-In addition to \basic\/ mechanisms, eliminates data redundancies in all pipeline segments.
+In addition to \basic\/ mechanisms, eliminates data redundancies across pipeline segments.
 \item[\adp] (the best of all worlds)\footnote{\small{Not committed to production code yet.}}. A heuristic that chooses 
 whether to apply data compaction (as in \eager) or not (as in \basic) based on the level of redundancy in the data 
 and the perceived cost-effectiveness of compaction. Works at store level, i.e., triggers redundancy elimination 
@@ -82,9 +82,9 @@ $T=0.5$, grows exponentially by $2\%$ with the number of in-memory flushes, and 
 disk flush. The rationale is that compactions become more effective as the memory store grows bigger. 
 
 $r$ is the complement of the ratio of unique keys in the memory store, denoted  $u$. The latter is approximated 
-as a the fraction of unique keys produced by the process of merging the segment indexes during the previous compaction. 
-Note that $u$ is an estimate, since compactions do not cover the current active segment. However, since the latter is a small 
-portion of the memory store, the error is insignificant. 
+as the fraction of unique keys produced when merging the segment indexes during the previous compaction. 
+Note that $u$ is an estimate, since compactions do not cover the current active segment. However, since the latter 
+is a small portion of data, the error is insignificant. 
 
 \remove{
 \begin{description}

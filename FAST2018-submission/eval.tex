@@ -1,12 +1,46 @@
-We compare the performance of 4 memory management strategies 
-\begin{description}
-\setlength{\itemsep}{0pt}
-  \setlength{\parskip}{0pt}
-\item[\none] -- which does no compaction of the data, this was previously the default in HBase.
-\item[\basic] -- which compacts the representation of the index; this is the default in HBase 2.0.
-\item[\eager] -- which compacts both the data and index.
-\item[\magic] -- which compacts the index or both the data and the index based on the workload.
-\end{description}
+We compare the Accordion in HBase to the baseline MemStore implementation.  
+Our evaluation explores all Accordion policies and configuration parameters.  
+We experiment with two types of production machines with directly attached SSD 
+and HDD storage. 
+
+We study HBase throughput and latency, under a variety of workloads. 
+To reason about the results, we explore additional signals -- I/O statistics, 
+GC metrics, etc.  
+
+\subsection{Experiment Setup}
+
+Our experiments exploit two clusters with different hardware types. The first cluster consists of five 12-core Intel Xeon 5 
+machines with 48GB RAM and 3TB SSD storage. The second cluster consists of five 8-core Intel Xeon E5620 servers 
+with 24GB RAM and 1TB HDD storage. Both clusters have a 1Gbps Ethernet interconnect. We denote these clusters 
+SSD and HDD, respectively.
+
+In each cluster, we use three nodes for HDFS and HBase instances, which share the hardware. The HDFS data 
+replication ratio is 3x. HBase exploits two machines as region servers, and one as master server. 
+
+A region server runs within a JVM container with 8GB heap, configured with G1GC memory management. 
+We use the default memory layout,  which allocates $40\%$ of the heap (roughly 3GB) to the MemStore 
+area, and $40\%$ more to the read-path block cache. We apply an asynchronous WAL, to focus on real-time, 
+write-intensive workloads (synchronous WAL implies an order-of-magnitude slower writes). The log aggregation
+period is 1s. The number of worker threads is 8, number of disk-flush threads is 10, and the maximal number 
+of HFile's per store is 25. 
+
+The data resides in one table that is pre-split to 50 regions by row key (i.e., each region server maintains 25 regions). 
+The table has a single column family with four columns. Our benchmarks build and query a dataset of 50-100 GB 
+in each experiment. 
+
+The workload is driven by the two remaining machines, each running up to 12 client threads. 
+We use a popular YCSB benchmarking tool~\cite{Cooper:2010:BCS:1807128.1807152} to generate 
+the put and get requests. All puts writes a full row (4 cells of 25 bytes each), and all gets retrieve
+a single cell. In order to maximize the load, updates are batched at the client side in 10KB buffers. 
+In each experiment, all operations draw keys from the same distribution over a key range
+of 100M items. We experiment with two distributions: heavy-tailed (Zipf) and uniform (the latter
+is used for put-only workloads). The Zipf distribution is generated following the description 
+in~\cite{Gray:1994:QGB:191839.191886}, with $\theta=0.8$.% (YCSB standard).
+
+ \remove{ 
+
+
+
 
 We compare the strategies by measuring their throughput and latency. In addition we measure the write volume, that is the number of KB written to the file system, and the cumulative gc time of each run.
 
@@ -16,22 +50,12 @@ The results of the following experiments are presented:
 (3) mixed read-write workload - showing reduction in read latencies of \basic\ and \magic\ strategies with respect to \none.
 (4) evaluating different settings of the \basic\ strategy in order to find its optimal configuration,
 
-\paragraph{Experiment setup.}
 
-Our experiments run on 2 clusters with different hardware. 
-The first cluster consists of five 12-core Intel Xeon 5 machines with 48GB RAM and 3TB 
-SSD storage, interconnected by 1G Ethernet. 
-The second cluster consists of five 8-core 
-Intel Xeon E5620 servers with 24GB RAM and 1TB magnetic drive. The interconnects  are 1Gbps Ethernet. 
-We denote these clusters as the SSD cluster and HDD cluster, respectively.
-In both clusters we allocate three nodes to HBase nodes, 1 master and 2 region servers, one to simulate the client whose performance we measure, and one to simulate background traffic
-as explained below. Each HBase node runs both an HBase region server or master and the underlying 
-Hadoop File System (HDFS) server.
+
+
  
-A region server runs within 8GB JVM container, with G1GC memory management. We use default configuration which allocates 40\% of the heap to memstore (roughly 3GB) and 40\% of the heap to block cache. 
-Number of number of flush threads is set to 10, and  the limit on number of store files before blocking is set to 25.
 
-The traffic is driven by a client running the popular YCSB benchmark~\cite{Cooper}. 
+The traffic is driven by a client running the popular YCSB benchmark~\cite{Cooper:2010:BCS:1807128.1807152}. 
 We run write-only and mixed read-write workload where keys are chosen from either a zipfian or a uniform distribution over a data set of 100 millions items.
 In all the experiments we create a table with 4 columns (in a single column family) which is pre-split into 50 regions. 
 Each update operation writes 25 Bytes values to all 4 columns of a single key, namely writing 100 Bytes of data. To increase the load updates are batched at the client side; buffer size is 10KB
@@ -292,3 +316,4 @@ For example when running similar workload with 100 regions and 16GB heap per reg
 \label{fig:pipeline-2}
 \end{figure}
 
+}
