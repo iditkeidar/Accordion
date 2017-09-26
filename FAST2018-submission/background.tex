@@ -1,116 +1,117 @@
 
 % Functionality
-HBase is a distributed key-value store that is part of the open source Hadoop technology suite. 
+HBase is a distributed key-value store that is part of the Hadoop open source  technology suite. 
 It is implemented in Java. Similarly to other modern KV-stores, HBase follows the design of 
-Google's Bigtable~\cite{Chang2008}. We sketch their common design principles 
+Google's Bigtable~\cite{Chang2008}. We sketch out their common design principles 
 and terminology. 
 
-\paragraph{Data Layout}
+\paragraph{Data model}
 KV-stores hold data items (referred to as \emph{rows}) identified by unique 
-row keys. Each row can consist of multiple field (\emph{columns}) identified by unique 
+row keys. Each row can consist of multiple fields (\emph{columns}) identified by unique 
 column keys. Co-accessed columns (typically used by the same application) can be 
 aggregated into  \emph{column families} to optimize access. The data is multi-versioned, 
-i.e., multiple versions of the same row key can exist, identified by unique {\em timestamps}. 
+i.e., multiple versions of the same row key can exist, each identified by a unique {\em timestamp}. 
 The smallest unit of data, named {\em cell}, is defined by a combination of a row key, a
 column key, and a timestamp.
 
 The basic KV-store API includes \emph{put} (point update of one or more cells, by row key), 
-\emph{get} (point query of one or more cells, by row key), and \emph{scan} (range query of one 
- of one or more cells, of all keys between an ordered pair of begin and end keys). 
+\emph{get} (point query of one or more columns, by row key, and possibly column keys), 
+and \emph{scan} (range query of one or more columns, of all keys between 
+an ordered pair of begin and end keys). 
 
 \begin{figure}[tb]
 \center
 \includegraphics[width=0.9\columnwidth]{LSM} 
-\caption{A log-sequence-merge LSM tree consists of a small memory store ({\em MemStore}, in HBase) 
-and a large disk store (collection of {\em HFile}'s). Put operations update the MemStore. The latter is 
-double-buffered: a flush freezes the mutable buffer, and creates a new one. 
-The immutable buffer is written to disk in the background.}
+\caption{A log-sequence-merge LSM tree consists of a small memory store ({\em MemStore} in HBase) 
+and a large disk store (collection of {\em HFile}s). Put operations update the MemStore. The latter is 
+double-buffered: a flush creates an immutable snapshot of the active buffer, and creates a new active 
+one. The snapshot is then written to disk in the background.}
 \label{fig:LSM}
 \end{figure}
 
-\paragraph{Data Management}
+\paragraph{Data management}
 KV-stores achieve scalability by sharding tables into range partitions by row key. 
 A shard is called {\em region\/} in HBase (\emph{tablet} in Bigtable). 
 A region is a collection of \emph{stores}, each associated with a column family. 
-Each store is backed by a collection of files sorted by row key, called \emph{HFile}'s in HBase 
+Each store is backed by a collection of files sorted by row key, called \emph{HFile}s in HBase 
 (\emph{sst files} in Bigtable). 
 
 In production, HBase is typically layered on top of Hadoop Distributed Filesystem (HDFS), 
-which provides reliable file storage abstraction. HDFS and HBase normally share the same hardware. 
+which provides a reliable file storage abstraction. HDFS and HBase normally share the same hardware. 
 Both scale horizontally to thousands of nodes. HDFS replicates data for availability (3-way by default). 
 It is optimized for very large files (the default block size is $64$MB).
 
 Data access in HBase is provided through {\em region servers} (analogous to {\em tablet servers}
 in Bigtable). Each region server controls multiple stores (tens to hundreds in production settings). 
 For locality of access, the HBase management plane (\emph{master server}) tries to lay out the 
-HFile's in HDFS such that their primary replicas are colocated with the region servers that control them. 
+HFiles in HDFS so that their primary replicas are colocated with the region servers that control them. 
 
 \paragraph{LSM trees}
-Each store is organized as log-sequence-merge (LSM) tree, which collects writes in a memory store 
+Each store is organized as an LSM tree, which collects writes in a memory store 
 (\emph{MemStore} in HBase), and periodically flushes the memory into a disk store, as illustrated in 
 Figure~\ref{fig:LSM}. Each flush creates a new immutable HFile, ordered by row key for query efficiency. 
-HFile's are created big, hence flushes are relatively infrequent. 
+HFiles are created big, hence flushes are relatively infrequent. 
 
-To allow puts to proceed in parallel with I/O, MemStore employs double buffering. 
-It maintains a dynamic \emph{active} buffer absorbing puts, and a static \emph{frozen}
-buffer that holds the previous version of the active buffer. The latter is written to the 
-filesystem in the background. Both buffers are ordered by key, as are the HFile's.  
+To allow puts to proceed in parallel with I/O, MemStore employs double buffering:
+it maintains a dynamic \emph{active} buffer absorbing puts, and a static snapshot
+that holds the previous version of the active buffer. The latter is written to the 
+filesystem in the background. Both buffers are ordered by key, as are the HFile.  
 
 % LSM puts and flushes
-Put operations are directed to MemStore. A flush occurs either when the active buffer 
-exceeds the region size limit ($128$ MB, by default), or when the overall footprint of all MemStore's
-in the region server exceeds the global size limit ($40\%$ of the heap, by default). 
+A flush occurs  when either the active buffer 
+exceeds the region size limit ($128$MB by default), or when the overall footprint of all MemStore's
+in the region server exceeds the global size limit ($40\%$ of the heap by default). 
 Flush first freezes the current active buffer, making it immutable, and creates a new empty one.
 It then replaces the reference to the active buffer, and proceeds to write the immutable buffer 
 as a new HFile. 
 
 % WAL
 In order to guarantee durability of writes between flushes, updates are first written to 
-the write-ahead log (WAL). HBase implements the logical WAL as collection of one or more physical 
-logs per region server, called \emph{HLog}'s. One HLog maps to multiple log files on HDFS. 
-As new data gets flushed to HFile's, the old log files become redundant; the system collects 
-them in the background. On the other hand, HLog growth beyond boundary may trigger flushes. 
-Since the logged data is only required at recovery time and is only scanned sequentially, the HLog's 
-may be stored on slower devices than the HFile's in production (e.g., HDD's vs SSD's),
-through the HDFS heterogeneous storage configuration. Real-time applications often 
-trade durability for speed, by aggregating multiple log records in memory prior to writing 
-them in a batch to HLog in the background. 
+a \emph{write-ahead log} (WAL). HBase implements the logical WAL as collection of one or more physical 
+logs per region server, called \emph{HLog}s, each consisting of multiple log files on HDFS. 
+As new data gets flushed to HFiles, the old log files become redundant, and the system collects 
+them in the background. On the other hand, if some HLog grows too big, the system may forcefully
+flush before the memory bound is reached, in order to enable the log's truncation. 
+Since logged data is only required at recovery time and is only scanned sequentially, HLogs
+may be stored on slower devices than HFiles in production (e.g., HDDs vs SSDs). 
+Real-time applications often trade durability for speed by aggregating multiple log records 
+in memory prior to asynchronously writing them to WAL in a bulk. 
 
-To keep the number of HFile's per store bounded, \emph{compactions} merge multiple files 
+To keep the number of HFiles per store bounded, \emph{compactions} merge multiple files 
 into one, while eliminating redundant (overwritten) versions. If compactions cannot keep up
-with the flush rate and the number if files per store reaches the limit, HBase may either throttle 
-or totally block the puts until the compactions succeed. 
+with the flush rate, HBase may either throttle or totally block the puts until the compactions 
+successfully reduce the number of files. 
 
 Most compactions are \emph{minor}, 
-in the sense that they merge part of the HFile's. \emph{Major} compactions merge all the region's 
-HFile's. Because they possess the global view of the data, major compactions also eliminate 
+in the sense that they merge part of the HFile. \emph{Major} compactions merge all the region's 
+HFile. Because they have a global view of the data, major compactions also eliminate 
 {\em tombstone} versions that indicate row deletions. Typically, major compactions incur huge 
-performance impact to the concurrent operations. In production, they are either carefully scheduled 
-or performed manually. 
+performance impact on concurrent operations. In production, they are either carefully scheduled 
+or performed manually~\cite{hbasetuning}.
 
 % LSM gets
 The get operation searches for the key in parallel in the MemStore (both the active and the 
-frozen buffers) and in the HFile's. The search in the HFile's is sped up through Bloom 
+snapshot buffers) and in the HFiles. The search in HFiles is expedited through Bloom 
 filters~\cite{Chang2008}, which eliminate most redundant disk reads. The system 
-uses a large RAM cache for popular HFile blocks (by default, $40\%$ of the heap).
+uses a large RAM cache for popular HFile blocks (by default $40\%$ of the heap).
 
 \paragraph{Memory organization}
-The MemStore active buffer is traditionally implemented as a dynamic index over a collection cells.  
+The MemStore's active buffer is traditionally implemented as a dynamic index over a collection of cells.  
 The HBase implementation uses the standard Java concurrent skiplist\footnote{\small{\url{https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/ConcurrentSkipListSet.html}}}).
-Data is multi-versioned, i.e., every put creates a new immutable version of the row it is applied to, 
+Data is multi-versioned -- every put creates a new immutable version of the row it is applied to, 
 consisting of one or more cells. 
 
 This implementation suffers from two drawbacks. First, the use of a big dynamic data structure entails 
-the abundance of auxiliary small objects and references, which inflate the in-memory index. 
-The overhead is most significant when the managed objects
-are small, i.e., the metadata-to-data ratio is big~\cite{Wu2015}. Second, the versioning mechanism 
+the abundance of auxiliary small objects and references, which inflate the in-memory index and induce 
+a high GC cost. The overhead is most significant when the managed objects are small, i.e., 
+the metadata-to-data ratio is big~\cite{Wu2015}. Second, the versioning mechanism 
 makes no attempt to eliminate redundancies prior to flush, i.e., the MemStore size  steadily grows, 
-independently of the workload. This is especially wasteful for heavy-tailed distributions that are 
-prevalent in production workloads~\cite{Devineni:2015}. 
+independently of the workload. This is especially wasteful for heavy-tailed (e.g., power law) distributions 
+that are prevalent in production workloads~\cite{Devineni:2015}. 
 
-The \sys\/ algorithm takes care of precisely these two problems, in order to boost the 
+The \sys\/ algorithm takes care of precisely these problems, to boost the 
 LSM tree performance and reduce the storage wearout. Section~\ref{sec:accordion} 
-presents it in details. 
+presents it in detail. 
 
 
 

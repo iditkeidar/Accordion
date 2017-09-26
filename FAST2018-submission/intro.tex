@@ -26,7 +26,7 @@ The memory store absorbs writes, and is periodically flushed to disk as a new im
 as well as the disk store. The number of files in the disk store has adverse impact on read performance. 
 In order to reduce it, the system periodically runs a background \emph{compaction} process, which reads some files from 
 disk and merges them into a single sorted one while removing redundant (overwritten or deleted) entries.
-We provide further background on LSM trees in Section~\ref{sec:background}.
+We provide further background on LSM trees and HBase in Section~\ref{sec:background}.
 
 % Compactions hurt 
 The performance of modern LSM stores is highly optimized, and yet as technology scales and real-time 
@@ -60,11 +60,11 @@ We introduce \sys, an algorithm for memory store management in LSM trees.
 \sys\ re-applies the classic LSM tree design principles to the memory store. Namely, it partitions this store
  into a small dynamic segment that absorbs writes, and a sequence of static segments created 
  from previous dynamic segments by \emph{in-memory flushes}; the latter occur at a higher rate
- than their disk counterparts.  The static segments have an optimized memory
+ than disk flushes.  The static segments have an optimized memory
  layout (flat index), which reduces their footprint. The algorithm also 
  performs \emph{in-memory compactions}, which eliminate redundant %(removed or overwritten) 
- data before it is written to disk. \sys's data organization is illustrated in Figure~\ref{fig:accordion}, and
- Section~\ref{sec:accordion} fleshes out the algorithm details. 
+ data before it is written to disk. \sys's data organization is illustrated in Figure~\ref{fig:accordion};
+ Section~\ref{sec:accordion} fleshes out its details. 
 
 % Status
 \sys\ is implemented in HBase production code; it is generally available starting the HBase 2.0 release. 
@@ -76,10 +76,10 @@ We study production-size datasets and data layouts, with multiple storage types 
 We conclude that the algorithm's contribution to overall system performance is substantial, 
 especially under a  heavy-tailed (Zipf) key access distribution with 
 small objects, as occurs in many production use cases~\cite{Wu2015}. For example, \sys\/ 
-improves the system's write throughput by up to $\inred{40\%}$, and reduces the tail read latency by up to 
+improves the system's write throughput by up to $\inred{47\%}$, and reduces the tail read latency by up to 
 \inred{XX\%}. At the same time, it reduces the write volume by up to \inred{XX\%}. Surprisingly, we see 
 that in most settings, disk I/O is \emph{not} the principal bottleneck. Rather, the memory management 
-overhead is more substantial: the improvements are highly correlated with  reduction in garbage collection time. 
+overhead is more substantial: the improvements are highly correlated with  reduction in garbage collection (GC) time. 
 
 In summary, \sys\ grows and shrinks the system's memory footprint like accordion bellows, giving it breathing 
 room. Our experiments show that it significantly improves end-to-end system performance and reduces disk wear, 
