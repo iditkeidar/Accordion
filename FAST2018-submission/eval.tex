@@ -36,13 +36,14 @@ The table has a single column family with four columns.
 The workload is driven by the two remaining machines, each running up to 12 client threads. 
 We use a popular YCSB benchmarking tool~\cite{Cooper:2010:BCS:1807128.1807152} to generate 
 the put and get requests. All puts writes a full row (4 cells of 25 bytes each), and all gets retrieve
-a single cell. Such small values are typical in many production workloads~\cite{Wo2015}. 
+a single cell. Such small values are typical in production workloads~\cite{Wu2015}. 
 
 In order to maximize the load, updates are batched at the client side in 10KB buffers. 
 In each experiment, all operations draw keys from the same distribution over a key range
-of 100M items. We experiment with two distributions: heavy-tailed (Zipf) and uniform (the latter
-is used for put-only workloads). The Zipf distribution is generated following the description 
-in~\cite{Gray:1994:QGB:191839.191886}, with $\theta=0.99$.% (YCSB standard).
+of 100M items. We experiment with two distributions: heavy-tailed (Zipf) and uniform (the latter 
+is less representative of real workloads -- studied for reference only). The Zipf distribution 
+is generated following the description in~\cite{Gray:1994:QGB:191839.191886}, with $\theta=0.99\%$ 
+(YCSB standard).
 
 \subsection{Evaluation Results}
 \label{ssec:results}
@@ -64,8 +65,7 @@ describes the exploration procedure.
 \end{figure*}
 
 The first experiment exercises only put operations. It starts from an empty table and performs 500M puts, 
-in parallel from 12 client threads. We study the Zipf and the uniform key distributions. (The latter is less 
-representative of real workloads -- presented for reference only). 
+in parallel from 12 client threads. We study the Zipf and the uniform key distributions.  
 
 Figure~\ref{fig:write-throughput} depicts the throughput speedup for different policies and hardware types, 
 and Table~\ref{tab:write-throughput} provides the absolute throughput numbers. For the Zipf benchmark, 
