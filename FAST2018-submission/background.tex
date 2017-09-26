@@ -20,7 +20,7 @@ The basic KV-store API includes \emph{put} (point update of one or more cells, b
 
 \begin{figure}[tb]
 \center
-\includegraphics[width=\columnwidth, trim={0 2cm 0 2cm}, clip]{LSM} 
+\includegraphics[width=0.9\columnwidth]{LSM} 
 \caption{A log-sequence-merge LSM tree consists of a small memory store ({\em MemStore}, in HBase) 
 and a large disk store (collection of {\em HFile}'s). Put operations update the MemStore. The latter is 
 double-buffered: a flush freezes the mutable buffer, and creates a new one. 
