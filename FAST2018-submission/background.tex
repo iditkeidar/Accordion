@@ -97,7 +97,7 @@ uses a large RAM cache for popular HFile blocks (by default $40\%$ of the heap).
 
 \paragraph{Memory organization}
 The MemStore's active buffer is traditionally implemented as a dynamic index over a collection of cells.  
-The HBase implementation uses the standard Java concurrent skiplist\footnote{\small{\url{https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/ConcurrentSkipListSet.html}}}).
+The HBase implementation uses the standard Java concurrent skiplist map~\cite{javaskiplist}.
 Data is multi-versioned -- every put creates a new immutable version of the row it is applied to, 
 consisting of one or more cells. 
 
