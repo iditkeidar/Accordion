@@ -72,7 +72,7 @@ As new data gets flushed to HFile's, the old log files become redundant; the sys
 them in the background. On the other hand, HLog growth beyond boundary may trigger flushes. 
 Since the logged data is only required at recovery time and is only scanned sequentially, the HLog's 
 may be stored on slower devices than the HFile's in production (e.g., HDD's vs SSD's),
-through the HDFS heterogeneous storage configuration. Real-time applications sometimes 
+through the HDFS heterogeneous storage configuration. Real-time applications often 
 trade durability for speed, by aggregating multiple log records in memory prior to writing 
 them in a batch to HLog in the background. 
 

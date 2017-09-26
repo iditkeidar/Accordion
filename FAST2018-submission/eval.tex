@@ -21,16 +21,17 @@ SSD and HDD, respectively.
 In each cluster, we use three nodes for HDFS and HBase instances, which share the hardware. The HDFS data 
 replication ratio is 3x. HBase exploits two machines as region servers, and one as master server. 
 
-A region server runs within a JVM container with 8GB heap, configured with G1GC memory management. 
+A region server runs  with 8GB heap, configured with G1GC memory management. 
 We use the default memory layout,  which allocates $40\%$ of the heap (roughly 3GB) to the MemStore 
 area, and $40\%$ more to the read-path block cache. We apply an asynchronous WAL, to focus on real-time, 
 write-intensive workloads (synchronous WAL implies an order-of-magnitude slower writes). The log aggregation
-period is 1s. The number of worker threads is 8, number of disk-flush threads is 10, and the maximal number 
-of HFile's per store is 25. 
+period is 1s. 
+%The number of worker threads is 8, number of disk-flush threads is 10, and the maximal number 
+%of HFile's per store is 25. 
 
-The data resides in one table that is pre-split to 50 regions by row key (i.e., each region server maintains 25 regions). 
-The table has a single column family with four columns. Our benchmarks build and query a dataset of 50-100 GB 
-in each experiment. 
+The data resides in one table that is pre-split to 50 regions (i.e., each region server maintains 25 regions). 
+The table has a single column family with four columns. 
+%Our benchmarks build and query a dataset of 50-100 GB in each experiment. 
 
 The workload is driven by the two remaining machines, each running up to 12 client threads. 
 We use a popular YCSB benchmarking tool~\cite{Cooper:2010:BCS:1807128.1807152} to generate 
@@ -39,10 +40,16 @@ a single cell. In order to maximize the load, updates are batched at the client 
 In each experiment, all operations draw keys from the same distribution over a key range
 of 100M items. We experiment with two distributions: heavy-tailed (Zipf) and uniform (the latter
 is used for put-only workloads). The Zipf distribution is generated following the description 
-in~\cite{Gray:1994:QGB:191839.191886}, with $\theta=0.8$.% (YCSB standard).
+in~\cite{Gray:1994:QGB:191839.191886}, with $\theta=0.99$.% (YCSB standard).
 
 \subsection{Evaluation Results}
 \label{ssec:results}
+
+\subsubsection{Write-Only Workloads}
+
+\subsubsection{Read-Write Workloads}
+
+\subsubsection{Parameter Tuning and Insights}
 
  \remove{ 
 

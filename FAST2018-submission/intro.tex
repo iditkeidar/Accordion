@@ -35,8 +35,8 @@ suffers (e.g., caching is less efficient when the data is scattered across multi
 compactions are too frequent, they jeopardize the performance of both writes and reads by consuming CPU 
 and I/O resources. In other words, LSM trees struggle to balance between {\em read amplification} (the number 
 of disk reads per query) and {\em write amplification} (the ratio of bytes written to disk versus bytes written to the 
-database). In addition to its performance impact, write amplification accelerates device wear-out, especially for SSD 
-hardware~\cite{Hu:2009}. 
+database)~\cite{rocksdbtuning}. In addition to its performance impact, write amplification accelerates device wear-out, 
+especially for SSD hardware~\cite{Hu:2009}. 
 
 % RAM is important too!
 Not surprisingly, enormous efforts have been invested in compaction parameter tuning, scheduling, etc.~\cite{hbasetuning,
