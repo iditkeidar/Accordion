@@ -49,7 +49,7 @@ is generated following the description in~\cite{Gray:1994:QGB:191839.191886}, wi
 \label{ssec:results}
 
 We compare multiple \sys\/ policies (\basic, \eager, and \adp\/) to the legacy MemStore implementation,
-(\none), which does not apply in-memory flush and compaction. \adp\/ is studied under multiple 
+\none. Here, \adp\/ is studied under multiple 
 redundancy thresholds: $R=0.2$, $R=0.35$ and $R=0.5$ (the smaller the ratio, the more aggressively
 the policy triggers in-memory compaction).  The $A$ (active segment bound) and $S$ (pipeline size bound) 
 parameters are tuned for optimal performance. We use $A=0.02$ and $S=5$. Section~\ref{ssec:tuning} 
@@ -67,10 +67,10 @@ describes the exploration procedure.
 The first experiment exercises only put operations. It starts from an empty table and performs 500M puts, 
 in parallel from 12 client threads. We study the Zipf and the uniform key distributions.  
 
-Figure~\ref{fig:write-throughput} depicts the throughput speedup for different policies and hardware types, 
+Figure~\ref{fig:write-throughput} depicts the throughput speedup for all workloads, policies and hardware types, 
 and Table~\ref{tab:write-throughput} provides the absolute throughput numbers. For the Zipf benchmark, 
 the maximal speedup are $47.6\%$ on SSD and $25.4\%$ on HDD. For the Uniform benchmark, they are 
-$23.8\%$ and $8.9\%$, respectively. 
+$23.8\%$ and $8.9\%$, respectively. Our focus going forward is on the Zipf workload. 
 
 We see that the improvement is much higher for the system with SSD storage, which is much faster 
 on the I/O side, and consequently overall. Being more CPU-bound than I/O-bound, its performance 
