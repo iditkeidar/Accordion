@@ -21,7 +21,7 @@ SSD and HDD, respectively.
 In each cluster, we use three nodes for HDFS and HBase instances, which share the hardware. The HDFS data 
 replication ratio is 3x. HBase exploits two machines as region servers, and one as master server. 
 
-A region server runs  with 8GB heap, configured with G1GC memory management. 
+A region server runs  with 8GB heap, under G1GC memory management. 
 We use the default memory layout,  which allocates $40\%$ of the heap (roughly 3GB) to the MemStore 
 area, and $40\%$ more to the read-path block cache. We apply an asynchronous WAL, to focus on real-time, 
 write-intensive workloads (synchronous WAL implies an order-of-magnitude slower writes). The log aggregation
@@ -59,10 +59,16 @@ describes the exploration procedure.
 
 \begin{figure*}[tb]
 \includegraphics[width=\figw]{Figs/throughput-ssd.png}
-\caption{{\bf  Throughput measured in SSD.} 
-}
+\caption{Write throughput speedup vs \none\/ (legacy) achieved by \sys\/ with \basic, \eager, and \adp\/ policies. 
+Measured on Zipf and Uniform key distributions, on SSD and HDD hardware. 
+} 
 \label{fig:write-throughput}
 \end{figure*}
+
+\begin{table*}
+\caption{Write throughput of the best \sys\/ policy vs \none, across multiple key distributions and disk hardware types. }
+\label{tab:write-throughput}
+\end{table*}
 
 The first experiment exercises only put operations. It starts from an empty table and performs 500M puts, 
 in parallel from 12 client threads. We study the Zipf and the uniform key distributions.  
@@ -84,11 +90,12 @@ throughput gain. We explain this by the overhead it incurs on the JVM by recycli
 objects at a very high rate. The \basic\/ policy, which releases large volumes of data at once upon disk 
 flush, turns out to be more GC-friendly, and yields the best performance. Figure~\ref{fig:gc-throughput-log2}, 
 which studies GC overhead for a range of policies and tuning parameters, further corroborates our 
-hypothesis. We see a clear negative correlation between the GC cycles and the system performance. 
+hypothesis. We see a clear negative correlation between the GC cycles and the write throughput. 
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/gc-throughput-log2.png}
-\caption{{\bf GC-Throughput correlation.} Log-log scale plot of the cumulative gc time vs write throughput in different settings shows negative linear correlation.
+\caption{GC time (cumulative, per minute) vs write throughput, log-log scale, measured for multiple \sys\/ 
+policies and configurations. The metrics are in clear negative linear correlation. 
 }
 \label{fig:gc-throughput-log2}
 \end{figure}
