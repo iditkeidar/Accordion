@@ -30,9 +30,9 @@ As our experiments show (Section~\ref{sec:eval}), the most effective parameter v
 %(\inred{$0.02 \leq A \leq 0.05$}, and \inred{$1 \leq S \leq 3$}).
 
 The memory store dynamics are as follows. 
-Once the active segment grows to a $\rho$ fraction of the memory store's size bound, an \emph{in-memory flush} is invoked.
+Once the active segment grows to a $A$ fraction of the memory store's size bound, an \emph{in-memory flush} is invoked.
 The flush makes the active segment  immutable and adds it to the pipeline; it creates a new active segment to replace it. 
-Once the number of immutable segments exceeds $s$, a background \emph{in-memory compaction} is invoked to shrink
+Once the number of immutable segments exceeds $S$, a background \emph{in-memory compaction} is invoked to shrink
 the pipeline back. It applies one or more mechanisms: 
 \begin{enumerate}
 \item {\em Flattening of intra-segment search indices.} Replaces dynamic segment indices such as skiplists by 

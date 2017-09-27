@@ -51,11 +51,11 @@ is generated following the description in~\cite{Gray:1994:QGB:191839.191886}, wi
 We compare multiple \sys\/ policies (\basic, \eager, and \adp\/) to the legacy MemStore implementation,
 \none. Here, \adp\/ is studied under multiple 
 redundancy thresholds: $R=0.2$, $R=0.35$ and $R=0.5$ (the smaller the ratio, the more aggressively
-the policy triggers in-memory compaction).  The $A$ (active segment bound) and $S$ (pipeline size bound) 
-parameters are tuned for optimal performance. We use $A=0.02$ and $S=5$. Section~\ref{ssec:tuning} 
-describes the exploration procedure. 
+the policy triggers in-memory compaction).  
 
-The results of every experiment are averaged across five runs. 
+The $A$ (active segment bound) and $S$ (pipeline size bound) parameters are tuned for optimal performance, 
+separately for each policy. %We use $A=0.02$ and $S=5$.
+Section~\ref{ssec:tuning} describes the exploration procedure. 
 
 \subsubsection{Write-Only Workloads}
 
@@ -74,8 +74,8 @@ Measured on the Zipf and Uniform key distributions, on SSD and HDD hardware.
       \hline
        & Zipf, SSD & Zipf, HDD & Uniform, SSD & Uniform, HDD \\
       \hline
-\none & & & & \\
-{\em \sys} & & & & \\
+\none & $75{,}861$  & $60{,}457$ & $74{,}971$ & $35{,}342$ \\
+{\em \sys} & $115{,}730$ & $78{,}392$ & $92{,}816$   & $38{,}488$ \\
       \hline
     \end{tabular}
 
@@ -87,6 +87,7 @@ Measured on the Zipf and Uniform key distributions, on SSD and HDD hardware.
 The first experiment exercises only put operations. It starts from an empty table and performs 500M puts, 
 in parallel from 12 client threads. We study the Zipf and the uniform key distributions. Depending on the setting 
 (workloads, policies and hardware type), our experiments run for approximately 1.5 hours to over 12 hours.  
+Every data point is averaged across five runs. 
 
 Figure~\ref{fig:write-throughput} depicts the throughput speedup for settings, 
 and Table~\ref{tab:write-throughput} provides the absolute throughput numbers. For the Zipf benchmark, 
@@ -95,10 +96,10 @@ $23.8\%$ and $8.9\%$, respectively. Our focus going forward is on the Zipf workl
 
 We see that the improvement is much higher for the system with SSD storage, which is much faster 
 on the I/O side, and consequently overall. Being more CPU-bound than I/O-bound, its performance 
-is heavily dependent on on the MemStore speed. By reducing the active segment size to only $2\%$
-of the MemStore size, \sys\/ improves data locality and search time within the dynamic index. Moreover, 
-it reduces by two orders of magnitude the number of small skiplist node objects, which relieves the 
-pressure from the Java garbage collection. 
+is heavily dependent on on the MemStore speed. By reducing the active segment size to only $2$\%
+of the MemStore size, \sys\/ improves data locality and search time within the dynamic skiplist index. 
+Moreover, it significantly relieves the pressure on the Java memory management through 
+two-orders-of-magnitude reduction in the number of small skiplist nodes.
 
 Somewhat surprisingly, the \eager\/ policy, albeit eliminating all redundant data, does not yield the largest 
 throughput gain. We explain this by the overhead it incurs on the JVM by recycling the redundant cell 
@@ -106,15 +107,57 @@ objects at a very high rate. The \basic\/ policy, which releases large volumes o
 flushes, turns out to be more GC-friendly, and yields the best performance. The \adp\/ policy, parameterized
 by $R$, fills the spectrum between \basic\/ and \eager. %We provide more insight into these results below. 
 
-On the I/O metrics side, the picture is reverse to system throughput. Table~\ref{fig:counters} summarizes the 
-results. Here, \eager\/ slashes the number of flushes and compactions by more than $50\%$, on all types 
-of hardware. Consequently, the volume of data written to HFiles is reduced by \inred{$XX\%$}. \basic\/
-reduces the number of flushes, compactions and bytes written by $17\%$, $36\%$ and \inred{$XX\%$}
-on SSD, and by $20\%$, $20\%$ and \inred{$XX\%$} on HDD. The savings are higher for solid-state 
+On the I/O metrics side, the picture is reverse to system throughput. Table~\ref{tab:counters} summarizes the 
+results. Here, \eager\/ slashes the number of flushes and compactions by more than $50$\%, on all types 
+of hardware. Consequently, the volume of data written to HFiles is reduced by $30$\%. \basic\/
+reduces the number of flushes, compactions and bytes written by $17$\%, $36$\% and $13$\%
+on SSD, and by $20\%$, $20\%$ and $8$\% on HDD. The savings are higher for solid-state 
 drives, which suffer more from wearout. 
 
-Note that the amount of data written to WAL,186GB, remains constant across all the experiments. HBase
-operators can choose placing log files on inexpensive hard disks, since they are only needed for recovery.  
+
+\begin{table*}
+  \centering
+  
+    \begin{tabular}{|c|c|c|c|c|}
+      \hline
+      Policy & $\#$flushes, SSD & $\#$compactions, SSD & $\#$flushes, HDD & $\#$compactions, HDD\\
+      \hline
+      \none & 1468	&524&	1504 & 548 \\
+\basic & 1224&	355&	 1210 & 443 \\
+\adp\/ (R=0.5) &922&	309&	879 & 316 \\
+\adp\/ (R=0.35) & 754&	261&	711 &248 \\
+\adp\/ (R=0.2) & 631	&209	&630 &216 \\
+\eager\ & {\bf 695}	& {\bf 242} &	667 & 242 \\
+      \hline
+    \end{tabular}
+
+  \caption{Number of flushes and compactions, measured for \none\/ vs \sys\/ policies, for the Zipf key distribution. 
+  \sys\/ provides double-digit savings to disk I/O. The \eager\/ policy is the optimal in this respect. }
+  \label{tab:counters}
+\end{table*}
+
+\begin{figure*}[t]
+  \centering
+  
+  \begin{subfigure}[t]{\columnwidth}
+      \includegraphics[width=\figw]{Figs/volume-ssd.png}
+      \caption[]{SSD}
+    \label{fig:volume:ssd}
+  \end{subfigure}
+  \begin{subfigure}[t]{\columnwidth}
+      \includegraphics[width=\figw]{Figs/volume-hdd.png}
+      \caption[]{HDD}
+    \label{fig:volume:hdd}
+  \end{subfigure}
+
+  \caption{Bytes written by flushes and compactions, measured for \none\/ vs \sys\/ policies, for the Zipf key distribution. 
+  \sys\/ provides double-digit savings to disk I/O. The \eager\/ policy is the optimal in this respect.. }
+  \label{fig:volume}
+\end{figure*}
+
+Note that the amount of data written to WAL,186GB (approximately $45$\% of the write volume), 
+remains constant across all the experiments. HBase operators can choose placing log files on inexpensive hard disks, 
+since they are only needed for recovery.  
 
 \paragraph{Insights} Summing up, \sys's improvements to storage utilization do not directly translate to 
 performance gains -- especially on fast SSD hardware. We explain this by the fact that I/O is simply not 
@@ -128,16 +171,46 @@ and the write throughput.
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/gc-throughput-log2.png}
-\caption{GC time (cumulative, per minute) vs write throughput, log-log scale, measured on SSD machines 
-for multiple \sys\/ policies and configurations, for the Zipf  key distribution. The metrics are in clear negative 
-linear correlation. 
+\caption{GC time (cumulative, per minute) vs write throughput, measured on SSD machines 
+for multiple \sys\/ policies and configurations, for the Zipf  key distribution. The metrics, in log-log scale, 
+are in clear negative linear correlation. 
 }
 \label{fig:gc-throughput-log2}
 \end{figure}
 
-We repeated our experiments with large data values (1KB). In this context, \sys\/ produced more modest 
-performance gains and I/O savings (\inred{$XX\%$}). This is not surprising because the algorithm primarily 
-works on reducing the metadata handling overhead. 
+\subsubsection{Read-Write Workloads}
+
+TBD
+
+\subsubsection{Parameter Tuning} \label{ssec:tuning}
+
+ \remove{ 
+
+
+
+
+We compare the strategies by measuring their throughput and latency. In addition we measure the write volume, that is the number of KB written to the file system, and the cumulative gc time of each run.
+
+The results of the following experiments are presented:
+(1) demonstrating the insight from different sets of experiments showing that gc overhead is a great throughput predictor,
+(2) write-only workload - comparing all 4 strategies,
+(3) mixed read-write workload - showing reduction in read latencies of \basic\ and \magic\ strategies with respect to \none.
+(4) evaluating different settings of the \basic\ strategy in order to find its optimal configuration,
+
+
+\paragraph{Write-only workload.}
+Each run creates an empty 50 regions table and then utilizes 12 threads to run 500 million update operations, each writing to all columns. Each such run is repeated 5 times. 
+We measure total  throughput and total volume of MB written to files. We present here the performance results of the run with the median throughput among 5 runs.
+
+Figures~\ref{fig:throughput-ssd} and~\ref{fig:throughput-hdd} depict the lift in throughput \basic, \magic, and \eager\ achieve over \none in ssd and hdd, respectively.
+Tables~\ref{fig:counters:ssd} and ~\ref{fig:counters:hdd} present the number of flushes, disk compactions and WAL files generated during the experiment.
+Figures~\ref{fig:volume-ssd} and~\ref{fig:volume-hdd} depict the write volume in every setting. 
+\magic demonstrates the tradeoff between throughput and write volume. As we increase the compaction threshold more in-memory compaction are triggered which degrades the throughput but at the same time reduces the write volume.
+At the extremes are \basic\ with the highest throughput and \eager with lowest write volume.
+\basic\ and \magic\ both run with $2\%$ active segment. In SSD the limit on the size of the pipeline is 5 and in HDD it is 4.
+\eager\ runs with $25\%$ active segments and limit of 2 on the size of the pipeline.
+The uniques thresholds for \magic\ are $0.2$, $0.35$, and $0.5$.
+
 
 \begin{table}[!t]
   \centering
@@ -184,41 +257,6 @@ works on reducing the metadata handling overhead.
   \sys\/ provides double-digit savings to disk I/O. The impact of I/O reduction is the largest for SSD hardware. }
   \label{fig:counters}
 \end{table}
-
-\subsubsection{Read-Write Workloads}
-
-TBD
-
-\subsubsection{Parameter Tuning} \label{ssec:tuning}
-
- \remove{ 
-
-
-
-
-We compare the strategies by measuring their throughput and latency. In addition we measure the write volume, that is the number of KB written to the file system, and the cumulative gc time of each run.
-
-The results of the following experiments are presented:
-(1) demonstrating the insight from different sets of experiments showing that gc overhead is a great throughput predictor,
-(2) write-only workload - comparing all 4 strategies,
-(3) mixed read-write workload - showing reduction in read latencies of \basic\ and \magic\ strategies with respect to \none.
-(4) evaluating different settings of the \basic\ strategy in order to find its optimal configuration,
-
-
-\paragraph{Write-only workload.}
-Each run creates an empty 50 regions table and then utilizes 12 threads to run 500 million update operations, each writing to all columns. Each such run is repeated 5 times. 
-We measure total  throughput and total volume of MB written to files. We present here the performance results of the run with the median throughput among 5 runs.
-
-Figures~\ref{fig:throughput-ssd} and~\ref{fig:throughput-hdd} depict the lift in throughput \basic, \magic, and \eager\ achieve over \none in ssd and hdd, respectively.
-Tables~\ref{fig:counters:ssd} and ~\ref{fig:counters:hdd} present the number of flushes, disk compactions and WAL files generated during the experiment.
-Figures~\ref{fig:volume-ssd} and~\ref{fig:volume-hdd} depict the write volume in every setting. 
-\magic demonstrates the tradeoff between throughput and write volume. As we increase the compaction threshold more in-memory compaction are triggered which degrades the throughput but at the same time reduces the write volume.
-At the extremes are \basic\ with the highest throughput and \eager with lowest write volume.
-\basic\ and \magic\ both run with $2\%$ active segment. In SSD the limit on the size of the pipeline is 5 and in HDD it is 4.
-\eager\ runs with $25\%$ active segments and limit of 2 on the size of the pipeline.
-The uniques thresholds for \magic\ are $0.2$, $0.35$, and $0.5$.
-
-
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/throughput-ssd.png}
