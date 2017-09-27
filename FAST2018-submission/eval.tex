@@ -55,12 +55,14 @@ the policy triggers in-memory compaction).  The $A$ (active segment bound) and $
 parameters are tuned for optimal performance. We use $A=0.02$ and $S=5$. Section~\ref{ssec:tuning} 
 describes the exploration procedure. 
 
+The results of every experiment are averaged across five runs. 
+
 \subsubsection{Write-Only Workloads}
 
 \begin{figure*}[tb]
 \includegraphics[width=\figw]{Figs/throughput-ssd.png}
 \caption{Write throughput speedup vs \none\/ (legacy) achieved by \sys\/ with \basic, \eager, and \adp\/ policies. 
-Measured on Zipf and Uniform key distributions, on SSD and HDD hardware. 
+Measured on the Zipf and Uniform key distributions, on SSD and HDD hardware. 
 } 
 \label{fig:write-throughput}
 \end{figure*}
@@ -87,22 +89,82 @@ pressure from the Java garbage collection.
 
 Somewhat surprisingly, the \eager\/ policy, albeit eliminating all redundant data, does not yield the largest 
 throughput gain. We explain this by the overhead it incurs on the JVM by recycling the redundant cell 
-objects at a very high rate. The \basic\/ policy, which releases large volumes of data at once upon disk 
-flush, turns out to be more GC-friendly, and yields the best performance. Figure~\ref{fig:gc-throughput-log2}, 
-which studies GC overhead for a range of policies and tuning parameters, further corroborates our 
-hypothesis. We see a clear negative correlation between the GC cycles and the write throughput. 
+objects at a very high rate. The \basic\/ policy, which releases large volumes of memory in bursts upon disk 
+flushes, turns out to be more GC-friendly, and yields the best performance. The \adp\/ policy, parameterized
+by $R$, fills the spectrum between \basic\/ and \eager.   
+
+Figure~\ref{fig:gc-throughput-log2}, which studies GC overhead for a range of policies and tuning parameters, 
+further corroborates our hypothesis. We see a clear negative correlation between the GC cycles and the write 
+throughput. 
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/gc-throughput-log2.png}
-\caption{GC time (cumulative, per minute) vs write throughput, log-log scale, measured for multiple \sys\/ 
-policies and configurations. The metrics are in clear negative linear correlation. 
+\caption{GC time (cumulative, per minute) vs write throughput, log-log scale, measured on SSD machines 
+for multiple \sys\/ policies and configurations, for the Zipf  key distribution. The metrics are in clear negative 
+linear correlation. 
 }
 \label{fig:gc-throughput-log2}
 \end{figure}
 
+On the I/O metrics side, the picture is reverse to system throughput. Table~\ref{fig:counters} summarizes the 
+results. Here, \eager\/ slashes the number of flushes and compactions by more than $50\%$, on all types 
+of hardware. Consequently, the volume of data written to HFiles is reduced by \inred{$XX\%$}. \basic\/
+reduces the number of flushes, compactions and bytes written by $17\%$, $36\%$ and \inred{$XX\%$}
+on SSD, and by $20\%$, $20\%$ and \inred{$XX\%$} on HDD. The savings are higher for solid-state 
+drives, which suffer more from wearout. 
+
+Note that the amount of data written to WAL,186GB, remains constant across all the experiments. HBase
+operators can choose placing log files on inexpensive hard disks, since they are only needed for recovery.  
+
+\begin{figure}[!t]
+  \centering
+  
+  \begin{subfigure}[tb]{\columnwidth}
+      \centering\small
+    \begin{tabular}{|c|c|c|c|}
+      \hline
+      Policy & $\#$flushes & $\#$compactions & $\#$WAL files\\
+      %\hline
+      \hline
+      \none & 1468	&524&	789 \\
+\basic & 1224&	355&	806 \\
+\adp\/ (R=0.5) &922&	309&	678 \\
+\adp\/ (R=0.35) & 754&	261&	615 \\
+\adp\/ (R=0.2) & 631	&209	&533 \\
+\eager\ & 695	&242&	490 \\
+      \hline
+    \end{tabular}
+	\caption[]{SSD}
+    \label{fig:counters:ssd}
+  \end{subfigure}
+  
+  \begin{subfigure}[t]{\columnwidth}
+    \centering\small
+    \begin{tabular}{|c|c|c|c|c|}
+      \hline
+        Policy & $\#$flushes & $\#$compactions & $\#$WAL files\\
+      %\hline
+      \hline
+      \none & 1504 & 548 & 743 \\
+\basic & 1210 & 443 & 808 \\
+\adp\/ (R=0.5) & 879 & 316 & 695 \\
+\adp\/ (R=0.35) & 711 & 248 & 650 \\
+\adp\/ (R=0.2) & 630 & 216 & 556 \\
+\eager\ & 667 & 242 & 536 \\
+      \hline
+    \end{tabular}
+	\caption[]{HDD}
+    \label{fig:counters:hdd}
+  \end{subfigure}
+
+  \caption{I/O metrics (flushes, compactions, and bytes written) measured for \none\/ vs \sys\/ policies, for the Zipf key distribution. 
+  \sys\/ provides double-digit savings to disk I/O. The impact of I/O reduction is the largest for SSD hardware. }
+  \label{fig:counters}
+\end{figure}
+
 \subsubsection{Read-Write Workloads}
 
-\subsubsection{Parameter Tuning and Insights} \label{ssec:tuning}
+\subsubsection{Parameter Tuning} \label{ssec:tuning}
 
  \remove{ 
 
@@ -156,51 +218,6 @@ The uniques thresholds for \magic\ are $0.2$, $0.35$, and $0.5$.
 \end{figure}
 
 
-\begin{figure}[!t]
-  \centering
-  
-  \begin{subfigure}[tb]{\columnwidth}
-      \centering\small
-    \begin{tabular}{|c|c|c|c|}
-      \hline
-      Strategy & $\#$flushes & $\#$compactions & $\#$WAL files\\
-      %\hline
-      \hline
-      \none & 1468	&524&	789 \\
-\basic & 1224&	355&	806 \\
-\magic\ 0.50 &922&	309&	678 \\
-\magic\ 0.35 & 754&	261&	615 \\
-\magic\ 0.20 & 631	&209	&533 \\
-\eager\ & 695	&242&	490 \\
-      \hline
-    \end{tabular}
-	\caption[]{SSD}
-    \label{fig:counters:ssd}
-  \end{subfigure}
-  
-  \begin{subfigure}[t]{\columnwidth}
-    \centering\small
-    \begin{tabular}{|c|c|c|c|c|}
-      \hline
-        Strategy & $\#$flushes & $\#$compactions & $\#$WAL files\\
-      %\hline
-      \hline
-      \none & 1504 & 548 & 743 \\
-\basic & 1210 & 443 & 808 \\
-\magic\ 0.50 & 879 & 316 & 695 \\
-\magic\ 0.35 & 711 & 248 & 650 \\
-\magic\ 0.20 & 630 & 216 & 556 \\
-\eager\ & 667 & 242 & 536 \\
-      \hline
-    \end{tabular}
-	\caption[]{HDD}
-    \label{fig:counters:hdd}
-  \end{subfigure}
-
-
-  \caption{Number of flushes, disk compactions, and WAL files created in different settings}
-  \label{fig:counters}
-\end{figure}
 
 
 \begin{figure}[htb]
