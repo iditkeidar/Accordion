@@ -91,20 +91,7 @@ Somewhat surprisingly, the \eager\/ policy, albeit eliminating all redundant dat
 throughput gain. We explain this by the overhead it incurs on the JVM by recycling the redundant cell 
 objects at a very high rate. The \basic\/ policy, which releases large volumes of memory in bursts upon disk 
 flushes, turns out to be more GC-friendly, and yields the best performance. The \adp\/ policy, parameterized
-by $R$, fills the spectrum between \basic\/ and \eager.   
-
-Figure~\ref{fig:gc-throughput-log2}, which studies GC overhead for a range of policies and tuning parameters, 
-further corroborates our hypothesis. We see a clear negative correlation between the GC cycles and the write 
-throughput. 
-
-\begin{figure}[htb]
-\includegraphics[width=\figw]{Figs/gc-throughput-log2.png}
-\caption{GC time (cumulative, per minute) vs write throughput, log-log scale, measured on SSD machines 
-for multiple \sys\/ policies and configurations, for the Zipf  key distribution. The metrics are in clear negative 
-linear correlation. 
-}
-\label{fig:gc-throughput-log2}
-\end{figure}
+by $R$, fills the spectrum between \basic\/ and \eager. %We provide more insight into these results below. 
 
 On the I/O metrics side, the picture is reverse to system throughput. Table~\ref{fig:counters} summarizes the 
 results. Here, \eager\/ slashes the number of flushes and compactions by more than $50\%$, on all types 
@@ -116,7 +103,30 @@ drives, which suffer more from wearout.
 Note that the amount of data written to WAL,186GB, remains constant across all the experiments. HBase
 operators can choose placing log files on inexpensive hard disks, since they are only needed for recovery.  
 
-\begin{figure}[!t]
+\paragraph{Insights} Summing up, \sys's improvements to storage utilization do not directly translate to 
+performance gains -- especially on fast SSD hardware. We explain this by the fact that I/O is simply not 
+a bottleneck in this setting -- the system sustains flushes and compactions in the background, for long
+periods of time, without shattering the write throughput. 
+
+On the other hand, the reduction in GC cycles, which boosts the CPU utilization, is critical for system 
+performance. Figure~\ref{fig:gc-throughput-log2}, which studies GC overhead for a range of policies and tuning 
+parameters, further corroborates our hypothesis. It shows a clear negative correlation between the GC time 
+and the write throughput. 
+
+\begin{figure}[htb]
+\includegraphics[width=\figw]{Figs/gc-throughput-log2.png}
+\caption{GC time (cumulative, per minute) vs write throughput, log-log scale, measured on SSD machines 
+for multiple \sys\/ policies and configurations, for the Zipf  key distribution. The metrics are in clear negative 
+linear correlation. 
+}
+\label{fig:gc-throughput-log2}
+\end{figure}
+
+We repeated our experiments with large data values (1KB). In this context, \sys\/ produced more modest 
+performance gains and I/O savings (\inred{$XX\%$}). This is not surprising because the algorithm primarily 
+works on reducing the metadata handling overhead. 
+
+\begin{table}[!t]
   \centering
   
   \begin{subfigure}[tb]{\columnwidth}
@@ -160,9 +170,11 @@ operators can choose placing log files on inexpensive hard disks, since they are
   \caption{I/O metrics (flushes, compactions, and bytes written) measured for \none\/ vs \sys\/ policies, for the Zipf key distribution. 
   \sys\/ provides double-digit savings to disk I/O. The impact of I/O reduction is the largest for SSD hardware. }
   \label{fig:counters}
-\end{figure}
+\end{table}
 
 \subsubsection{Read-Write Workloads}
+
+TBD
 
 \subsubsection{Parameter Tuning} \label{ssec:tuning}
 
@@ -178,14 +190,6 @@ The results of the following experiments are presented:
 (2) write-only workload - comparing all 4 strategies,
 (3) mixed read-write workload - showing reduction in read latencies of \basic\ and \magic\ strategies with respect to \none.
 (4) evaluating different settings of the \basic\ strategy in order to find its optimal configuration,
-
-\paragraph{GC overhead.}
-
-Our experiments show that in write-only workloads gc and throughput have a very high correlation. 
-Figure~\ref{fig:gc-throughput-log2} plots the scatter graph of cumulative gc time vs write throughput of several write-only experiments with varying settings in different strategies. It clearly shows that  the lower the gc overhead is, the higher the throughput is.
-Specifically, there is a negative linear correlation between their values on a log-log scale.
-
-
 
 
 \paragraph{Write-only workload.}
@@ -252,50 +256,6 @@ Figures~\ref{fig:volume-ssd-uniform} and~\ref{fig:volume-hdd-uniform} depict the
 }
 \label{fig:throughput-hdd-uniform}
 \end{figure}
-
-
-\begin{figure}[!t]
-  \centering
-  
-  \begin{subfigure}[tb]{\columnwidth}
-      \centering\small
-    \begin{tabular}{|c|c|c|c|}
-      \hline
-      Strategy & $\#$flushes & $\#$compactions & $\#$WAL files\\
-      %\hline
-      \hline
-\none & 1705 & 288 & 632 \\
-\basic & 1416 & 220 & 577 \\
-\magic\ 0.20 & 1402 & 219 & 586 \\
-\eager\ & 1382 & 255 & 578 \\
-       \hline
-    \end{tabular}
-	\caption[]{SSD}
-    \label{fig:counters-uniform:ssd}
-  \end{subfigure}
-  
-  \begin{subfigure}[t]{\columnwidth}
-    \centering\small
-    \begin{tabular}{|c|c|c|c|c|}
-      \hline
-        Strategy & $\#$flushes & $\#$compactions & $\#$WAL files\\
-      %\hline
-      \hline
-     \none & 1736	&570&	739 \\
-\basic & 1408&	458&	742 \\
-\magic\ 0.20 & 1413	&470	&770 \\
-\eager\ & 1423	&476&	760 \\
-      \hline
-    \end{tabular}
-	\caption[]{HDD}
-    \label{fig:counters-uniform:hdd}
-  \end{subfigure}
-
-
-  \caption{Number of flushes, disk compactions, and WAL files created in different settings with uniform distribution}
-  \label{fig:counters-uniform}
-\end{figure}
-
 
 \begin{figure}[htb]
 %\includegraphics[width=\figw]{Figs/volume-ssd-uniform.png}
