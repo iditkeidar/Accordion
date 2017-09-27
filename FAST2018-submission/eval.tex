@@ -68,14 +68,27 @@ Measured on the Zipf and Uniform key distributions, on SSD and HDD hardware.
 \end{figure*}
 
 \begin{table*}
-\caption{Write throughput of the best \sys\/ policy vs \none, across multiple key distributions and disk hardware types. }
+  \centering
+
+        \begin{tabular}{|c|c|c|c|c|c|}
+      \hline
+       & Zipf, SSD & Zipf, HDD & Uniform, SSD & Uniform, HDD \\
+      \hline
+\none & & & & \\
+{\em \sys} & & & & \\
+      \hline
+    \end{tabular}
+
+
+\caption{Write throughput (operations per second) of the best \sys\/ policy vs \none, across multiple key distributions and disk hardware types. }
 \label{tab:write-throughput}
 \end{table*}
 
 The first experiment exercises only put operations. It starts from an empty table and performs 500M puts, 
-in parallel from 12 client threads. We study the Zipf and the uniform key distributions.  
+in parallel from 12 client threads. We study the Zipf and the uniform key distributions. Depending on the setting 
+(workloads, policies and hardware type), our experiments run for approximately 1.5 hours to over 12 hours.  
 
-Figure~\ref{fig:write-throughput} depicts the throughput speedup for all workloads, policies and hardware types, 
+Figure~\ref{fig:write-throughput} depicts the throughput speedup for settings, 
 and Table~\ref{tab:write-throughput} provides the absolute throughput numbers. For the Zipf benchmark, 
 the maximal speedup are $47.6\%$ on SSD and $25.4\%$ on HDD. For the Uniform benchmark, they are 
 $23.8\%$ and $8.9\%$, respectively. Our focus going forward is on the Zipf workload. 
