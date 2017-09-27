@@ -30,13 +30,14 @@ As our experiments show (Section~\ref{sec:eval}), the most effective parameter v
 (\inred{$0.02 \leq A \leq 0.05$}, and \inred{$1 \leq S \leq 3$}).
 
 The memory store dynamics are as follows. 
-Once the active segment grows to a $\rho$ fraction of the memory store's size bound, an \emph{in-memory flush} is invoked.
-The flush makes the active segment  immutable and adds it to the pipeline; it creates a new active segment to replace it. 
-Once the number of immutable segments exceeds $s$, a background \emph{in-memory compaction} is invoked to shrink
+Once the active segment grows to a $A$ fraction of the memory store's size bound, an \emph{in-memory flush} is invoked.
+The \ingreen{in-memory} flush makes the active segment immutable and adds it to the pipeline; it creates a new active segment to replace it. \ingreen{Unless the new number of immutable segments in the pipeline exceeds $S$, the \emph{flattening of intra-segment search indices} starts immediately on the newly added segment. This implies, replacing dynamic segment indices such as skiplists by 
+compact ordered arrays, which are suitable for immutable data. }
+Once the number of immutable segments exceeds $S$, a background \emph{in-memory compaction} is invoked to shrink
 the pipeline back. It applies one or more mechanisms: 
 \begin{enumerate}
-\item {\em Flattening of intra-segment search indices.} Replaces dynamic segment indices such as skiplists by 
-compact ordered arrays, which are suitable for immutable data. 
+%\item {\em Flattening of intra-segment search indices.} Replaces dynamic segment indices such as skiplists by 
+%compact ordered arrays, which are suitable for immutable data. 
  \remove{ % Off-heap stuff omitted due to lack of evaluation
  % To Do: move to conclusions
  An additional advantage of the flat layout  is that in managed environments, 
@@ -56,8 +57,7 @@ to new slabs; otherwise, the redundant cells are simply de-referenced, and later
 \end{enumerate} 
 The choice of compaction mechanisms to employ is guided by the policies described in Section~\ref{ssec:policies}.
 
-Flushes to disk work the same way as in a standard LSM tree. A disk flush freezes the list of immutable segments 
-to be written to storage, and removes them from the pipeline. The background flush process merges the frozen 
+Flushes to disk work the same way as in a standard LSM tree. A disk flush \ingreen{shifts to snapshot all pipeline segments. The pipeline is emptied and ready to absorb new flat segments. The snapshot's list of immutable, flat segments is not a part of the pipeline, and is going to be freed once written to storage.} The background flush process merges the snapshot's 
 segments while eliminating the redundancies, and streams the result to a new file. Note that the disk flush process
 may happen concurrently to in-memory compaction. In that case, the latter is aborted. This behavior is absolutely
 valid since in-memory compaction it is an optimization that may be retried later.
@@ -66,7 +66,7 @@ valid since in-memory compaction it is an optimization that may be retried later
 
 We implement three in-memory compaction policies: 
 \begin{description}
-\item[\basic] (low-overhead). Once a segment becomes immutable, flattens its index. Once the pipeline size exceeds $s$, 
+\item[\basic] (low-overhead). Once a segment becomes immutable, flattens its index. Once the pipeline size exceeds $S$, 
 merges all segment indices into one.  
 \item[\eager] (high-overhead, high-reward under self-similar workloads). 
 In addition to \basic\/ mechanisms, eliminates data redundancies across pipeline segments.

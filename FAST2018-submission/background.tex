@@ -61,8 +61,9 @@ filesystem in the background. Both buffers are ordered by key, as are the HFile.
 A flush occurs  when either the active buffer 
 exceeds the region size limit ($128$MB by default), or when the overall footprint of all MemStore's
 in the region server exceeds the global size limit ($40\%$ of the heap by default). 
-Flush first freezes the current active buffer, making it immutable, and creates a new empty one.
-It then replaces the reference to the active buffer, and proceeds to write the immutable buffer 
+\ingreen{Flush first shifts the current active buffer, to be the snapshot (making it immutable) and creates a new empty active buffer.}
+%Flush first freezes the current active buffer, making it immutable, and creates a new empty one.
+It then replaces the reference to the active buffer, and proceeds to write the \ingreen{snapshot}
 as a new HFile. 
 
 % WAL
@@ -83,8 +84,8 @@ with the flush rate, HBase may either throttle or totally block the puts until t
 successfully reduce the number of files. 
 
 Most compactions are \emph{minor}, 
-in the sense that they merge part of the HFile. \emph{Major} compactions merge all the region's 
-HFile. Because they have a global view of the data, major compactions also eliminate 
+in the sense that they merge part of the \ingreen{HFiles}. \emph{Major} compactions merge all the region's 
+\ingreen{HFiles}. Because they have a global view of the data, major compactions also eliminate 
 {\em tombstone} versions that indicate row deletions. Typically, major compactions incur huge 
 performance impact on concurrent operations. In production, they are either carefully scheduled 
 or performed manually~\cite{hbasetuning}.
