@@ -231,10 +231,13 @@ storage savings for minor performance losses.
 
 \paragraph{Garbage collection}
  Redundancy elimination proved to be less impactful 
-than reduction in GC cycles, especially in systems with fast SSD hardware. 
+than memory management overhead, especially in systems with fast SSD hardware. 
 Figure~\ref{fig:gc-throughput-log2}, which studies GC overhead for a range of policies and tuning 
-parameters, further corroborates our hypothesis. It shows a clear negative correlation between the 
+parameters, further corroborates this hypothesis. It shows a clear negative correlation between the 
 GC time and the write throughput. 
+Note that this does not necessarily mean that GC time is the only reason for performance reduction. Rather,
+GC cycles may be correlated with other costs, e.g., memory fragmentation, which reduces locality.
+
 
 \subsubsection{Read-Write Workloads}
 
