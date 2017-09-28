@@ -37,7 +37,9 @@ it does reduce the write volume, which is particularly important for longevity o
 Our implementation is strictly within the Java-based HBase framework, using Java's standard memory allocator.
 This implies that our flattening, while reducing skiplist indices, does not remove redundant indirections altogether.
 Specifically, our flat segment is an array of pointers to objects, which point to data cells. 
-By replacing the Java memory allocator  with mslab~\cite{mslab} we can do away with this intermediate level 
-of indirection and allocate data cells off-heap. This approach has been shown to effective for reads~\cite{alibabahbase}, 
-and our preliminary experiments show that it is promising  for writes as well.  
+By replacing the Java memory management with custom HBase slab allocator 
+(MSLAB~\cite{hbasemslab}), we can do away with this intermediate level of indirection, 
+and allocate the static segment indices off-heap. Offloading the data from the Java heap
+has been shown to be effective for read tradffic~\cite{alibabahbase}. 
+Our preliminary experiments show that it is promising  for writes as well.  
 
