@@ -80,7 +80,7 @@ especially under a  heavy-tailed (Zipf) key access distribution with
 small objects, as occurs in many production use cases~\cite{Wu2015}. For example, \sys\/ 
 improves the system's write throughput by up to $48\%$, and reduces read tail latency 
 (in HDD settings)  
-by up to $40\%$. At the same time, it reduces the write volume (excluding the log) by up to $22\%$. Surprisingly, we see 
+by up to $40\%$. At the same time, it reduces the write volume (excluding the log) by up to $30\%$. Surprisingly, we see 
 that in many settings, disk I/O is \emph{not} the principal bottleneck. Rather, the memory management 
 overhead is more substantial: the improvements are highly correlated with  reduction in \emph{garbage collection (GC)} time. 
 
