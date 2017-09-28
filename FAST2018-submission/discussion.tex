@@ -40,6 +40,6 @@ Specifically, our flat segment is an array of pointers to objects, which point t
 By replacing the Java memory management with custom HBase slab allocator 
 (MSLAB~\cite{hbasemslab}), we can do away with this intermediate level of indirection, 
 and allocate the static segment indices off-heap. Offloading the data from the Java heap
-has been shown to be effective for read tradffic~\cite{alibabahbase}. 
+has been shown to be effective for read traffic~\cite{alibabahbase}. 
 Our preliminary experiments show that it is promising  for writes as well.  
 

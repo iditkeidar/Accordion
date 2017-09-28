@@ -79,7 +79,7 @@ consumes memory for overwritten data; this is significant in production-like hea
 By removing these redundancies, the data-merging approach further delays disk flushes, which both improves read latency  (thanks to more 
 queries being satisfied from memory) and reduces write volume.
 
-In our HBase deployment, we implemented two policies corresponding to these two in-memory compaction approaches:
+Our HBase 2.0 implementation includes two policies corresponding to these two in-memory compaction approaches:
 \begin{description}
 \item[\basic] (low-overhead). Once a segment becomes immutable, flatten its index. Once the pipeline size exceeds $S$, 
 merge all segment indices into one.  
