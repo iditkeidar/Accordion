@@ -362,6 +362,7 @@ Figure~\ref{fig:latency-speedup-hdd} depicts the latency speed-up \basic\ and \m
 }
 \label{fig:latency-speedup-hdd}
 \end{figure}
+}
 
 \paragraph{Parameter exploration.}
 One of the main sources for memory management overhead is the skip-list data structure used to index the dynamic fraction of the memory component.
@@ -391,6 +392,7 @@ Figures~\ref{fig:pipeline-1-ssd} and~\ref{fig:pipeline-1-hdd} depict the through
 \label{fig:pipeline-1-ssd}
 \end{figure}
 
+
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/pipeline-1-hdd.png}
 \caption{{\bf Pipeline size tuning - HDD.} 
@@ -398,6 +400,16 @@ Figures~\ref{fig:pipeline-1-ssd} and~\ref{fig:pipeline-1-hdd} depict the through
 \label{fig:pipeline-1-hdd}
 \end{figure}
 
+\begin{figure}[htb]
+\includegraphics[width=\figw]{Figs/eager-throughput.png}
+\caption{{\bf Throughput (op/sec)} Eager vs. basic in defferent settings 
+}
+\label{fig:eager-throughput}
+\end{figure}
+
+
+
+\remove{
 With a different experimental setup the tuning results are different.
 For example when running similar workload with 100 regions and 16GB heap per region server we get different results.
 \begin{figure}[htb]
@@ -414,4 +426,11 @@ For example when running similar workload with 100 regions and 16GB heap per reg
 \label{fig:pipeline-2}
 \end{figure}
 
+
+\begin{figure}[htb]
+\includegraphics[width=\figw]{Figs/eager-volume.png}
+\caption{{\bf Write volume} Eager vs. basic in defferent settings
+}
+\label{fig:eager-volume}
+\end{figure}
 }
