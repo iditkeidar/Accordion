@@ -135,7 +135,7 @@ compactions become more important because the component is bigger and more space
 \end{description}
 }
 
-\subsection{Implementation Details} \label{ssec:impl-details}
+\subsection{Concurrency} \label{ssec:impl-details}
 
 A compacting memstore is comprised of an active segment and a double-ended queue (pipeline) of inactive segments. 
 The pipeline is accessed by read APIs (get and scan), as well as by background disk flushes and in-memory compactions. 
