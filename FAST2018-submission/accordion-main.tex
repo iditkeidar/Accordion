@@ -112,8 +112,13 @@ the baseline HBase implementation and discuss some unexpected lessons learned in
 \input{eval}
 
 \section{Related Work} \label{sec:related}
+\input{related}
 
 \section{Conclusions} \label{sec:conclusions}
+
+While disk compactions in LSM trees have gotten a lot of attention, their in-memory organization was, by and large,  ignored.
+In this work, we showed that applying the LSM tree principles also to RAM can improve performance and reduce disk wear. 
+We presented \sys, an algorithm for 
 
 
 \subsection*{Acknowledgments}

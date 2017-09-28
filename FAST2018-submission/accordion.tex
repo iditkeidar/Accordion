@@ -104,11 +104,12 @@ Initially, $t=0.5$; it then grows exponentially by $2\%$ with the number of in-m
 the default value (namely $0.5$) upon disk flush. Thus, $t$ is bigger when there is more data in the MemStore.
 The second parameter, $u$, estimates the ratio of unique keys in the memory store based on the 
 fraction of unique keys encountered during the previous merge of segment indices. 
-The accuracy of $u$ at a given point in time depends on the number of merges that occurred since the last disk flush
+
+Note that the accuracy of $u$ at a given point in time depends on the number of merges that occurred since the last disk flush
 or data-merge.
 Initially, $u$ is zero, and so the first in-memory compaction does not employ data-merge.
 Then, the estimate is based on the $S$ merged components, which at the time for the second in-memory compaction
-is roughly one half of the relevant data, since the pipe holds $S-1$ unmerged components. 
+is roughly one half of the relevant data, since the pipeline holds $S-1$ unmerged components. 
 Over time, $u$ becomes more accurate while $t$ grows. 
 
 \adp\/ triggers redundancy elimination with probability $t$ if the fraction of redundant keys $1-u$ exceeds a parameter 

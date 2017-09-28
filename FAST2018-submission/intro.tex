@@ -9,7 +9,7 @@ graph storage (Facebook/Dragon~\cite{dragon},
 Pinterest/Zen~\cite{zen}), and many more. 
 
 % LSM trees optimize disk I/O 
-The leading approach for implementating write-intensive key-value storage is \emph{log-structured merge (LSM)} trees~\cite{O'Neil:1996}.
+The leading approach for implementing write-intensive key-value storage is \emph{log-structured merge (LSM)} trees~\cite{O'Neil:1996}.
 This technology is ubiquitously used by popular key-value storage libraries (e.g., LevelDB~\cite{leveldb}, 
 RocksDB~\cite{rocksdb}, ScyllaDB~\cite{scylladb}) and distributed storage systems on top 
 of them (e.g., Bigtable~\cite{Chang2008}, Cassandra~\cite{cassandra}, HBase, 
@@ -70,7 +70,7 @@ We introduce \sys, an algorithm for memory store management in LSM trees.
 
 % Status
 \sys\ is implemented in HBase production code; it is generally available starting the HBase 2.0 release. 
-An extensive evaluation process led to \sys's adoption as HBases's default memory store implementation. 
+An extensive evaluation process led to \sys's adoption as HBase's default memory store implementation. 
 
 % Experiments
 In Section~\ref{sec:eval} we experiment with the \sys\ HBase implementation in a range of scenarios.
@@ -80,8 +80,8 @@ especially under a  heavy-tailed (Zipf) key access distribution with
 small objects, as occurs in many production use cases~\cite{Wu2015}. For example, \sys\/ 
 improves the system's write throughput by up to $48\%$, and reduces read tail latency 
 (in HDD settings)  
-by up to $40\%$. At the same time, it reduces the write volume by up to \inred{XX\%}. Surprisingly, we see 
-that in most settings, disk I/O is \emph{not} the principal bottleneck. Rather, the memory management 
+by up to $40\%$. At the same time, it reduces the write volume (excluding the log) by up to $22\%$. Surprisingly, we see 
+that in many settings, disk I/O is \emph{not} the principal bottleneck. Rather, the memory management 
 overhead is more substantial: the improvements are highly correlated with  reduction in \emph{garbage collection (GC)} time. 
 
 In summary, \sys\ grows and shrinks the system's memory footprint like accordion bellows, giving it breathing 
