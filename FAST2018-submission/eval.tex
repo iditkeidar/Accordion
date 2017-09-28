@@ -406,7 +406,7 @@ Figure~\ref{fig:latency-speedup-hdd} depicts the latency speed-up \basic\ and \m
 }
 
 \subsubsection{Parameter Tuning} \label{ssec:tuning}
-One of the main sources for memory management overhead is the skip-list data structure used to index the active fraction of the memory component.
+One of the main sources for memory management overhead is the skiplist data structure used to index the active fraction of the memory component.
 Not only it is bigger in size compared to a flat index it is also fragmented whereas static index is stored in a consecutive block of memory, therefore it incurs smaller overhead in terms of allocation, gc and cache misses.
 We evaluate \basic\ strategy with different active fraction sizes: A=0.25, 0.1, 0.05, 0.02. 
 The \none\ strategy has no static portion in the memory component therefore its throughput is added at the point where A=1.0.
@@ -416,7 +416,8 @@ It shows that indeed the store scales as the active fraction size decreases.
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/dynamic-fraction-1.png}
-\caption{{\bf Active fraction tuning.} The throughput increases as the active fraction size decreases.
+\caption{Tuning of the active segment memory fraction, $A$, for the \basic\/ policy. Five experiments are conducted for each $A$. 
+The write throughput is negatively correlated with $A$.
 }
 \label{fig:dynamic-fraction}
 \end{figure}
@@ -425,23 +426,27 @@ When the active fraction is less than $10\%$ it is clear that merging it into th
 The alternative is to allow several segments to wait in the pipeline before they are merged into a single segment. This helps with creating new indices less frequently.
 On the flip side, each segment in the pipeline calls for a separate scanner during read operations which can degrade their performance.
 %Hence, we run the same experiments as explained above, varying the limit for the size of pipeline.
-Figures~\ref{fig:pipeline-1-ssd} and~\ref{fig:pipeline-1-hdd} depict the throughput results as a function of the number of segments in the pipeline. 
+Figure~\ref{fig:pipeline} depict the throughput results as a function of the number of segments in the pipeline. 
 Peak throughput is with 5 and 4 entries in the pipeline in SSD and HDD respectively.
 
-\begin{figure}[htb]
-\includegraphics[width=\figw]{Figs/pipeline-1-ssd.png}
-\caption{{\bf Pipeline size tuning - SSD.} 
-}
-\label{fig:pipeline-1-ssd}
-\end{figure}
+\begin{figure*}[tb]
 
+  \centering
+  
+  \begin{subfigure}[t]{\columnwidth}
+      \includegraphics[width=\figw]{Figs/pipeline-1-ssd.png}
+      \caption[]{SSD}
+    \label{fig:pipeline:ssd}  
+  \end{subfigure}   
+  \begin{subfigure}[t]{\columnwidth}
+      \includegraphics[width=\figw]{Figs/pipeline-1-hdd.png}
+      \caption[]{HDD}
+    \label{fig:pipeline:hdd}
+  \end{subfigure}
 
-\begin{figure}[htb]
-\includegraphics[width=\figw]{Figs/pipeline-1-hdd.png}
-\caption{{\bf Pipeline size tuning - HDD.} 
-}
-\label{fig:pipeline-1-hdd}
-\end{figure}
+\caption{Tuning of the pipeline size bound, $S$, for the \basic\/ policy. Five experiments are conducted for each $S$.} 
+\label{fig:pipeline}
+\end{figure*}
 
 With the optimal parameter found for \basic\ (A=0.02) \eager\/ performs poorly since compacting the data so frequently is ineffective. Figure~\ref{fig:eager-throughput} shows that when the active segment is much bigger (A=0.25) \eager\ performs much better, it outperforms the baseline by $20\%$.
 In addition we see that the write volume for \eager\ is the roughly the same in these two settings while for \basic\ the write volume increases with the size of the active fraction.  
