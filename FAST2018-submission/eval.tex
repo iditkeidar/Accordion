@@ -245,19 +245,19 @@ Our second benchmark studies read latencies under heavy write traffic.
 We run batched puts from 10 client threads and single-key gets from two other threads. 
 The keys of all operations are distributed identically (Zipf). We measure the $50$th, 
 $75$th, $90$th, $95$th and $99$th get latency percentiles. Figure~\ref{fig:latency} 
-depicts the relative latency speedup of \basic\/ and \adp\/ ($R=0.2$) versus \none\/ 
-(values greater than 1 mean slowdown). 
+depicts the relative latency slowdown of \basic\/ and \adp\/ ($R=0.2$) versus \none.
+%(values greater than 1 mean slowdown). 
 
-The HDD systems enjoy a dramatic reduction in tail latencies ($15$\% to $40$\%, for \adp). 
+The HDD systems enjoy a dramatic reduction in tail latencies ($15$\% to $40$\% for \adp). 
 We explain this as follows. The tail latencies are cache misses that are served from disk. 
-The latter are most painful with HDD's. Thanks to in-memory compaction, \adp\/ prolongs 
+The latter are most painful with HDDs. Thanks to in-memory compaction, \adp\/ prolongs 
 the lifetime of data in MemStore. Therefore, more results are served from MemStore, i.e., 
-there are less attempts to read from cache, and consequently from disk, in case of miss.  
+there are less attempts to read from cache, and consequently from disk, in case of a cache miss.  
 
 In SSD systems, the get latencies are marginally slower in all percentiles (e.g., the 
 $95$th percentile is $2.13$ms in \none\/ versus $2.26$ms in \adp). This happens
 because most reads are dominated by in-memory search speed, which depends on the 
-number of segments in the MemStore pipeline (in our experiment, 1 to 5). The other factor
+number of segments in the MemStore pipeline (in our experiment, 5). The other factor
 is increased GC overhead in \adp\/ that stems from redundancy elimination. 
 
 
