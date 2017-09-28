@@ -64,12 +64,12 @@ Section~\ref{ssec:tuning} describes the exploration procedure.
 
   \centering
   
-  \begin{subfigure}[t]{\columnwidth}
+  \begin{subfigure}[t]{1.1\columnwidth}
       \includegraphics[width=\figw]{Figs/throughput-zipfian.png}
       \caption[]{Zipf distribution}
-    \label{fig:write-throughput:zipf}
-    
-  \end{subfigure}  \begin{subfigure}[t]{\columnwidth}
+    \label{fig:write-throughput:zipf}  
+  \end{subfigure}   \hskip .1\columnwidth
+  \begin{subfigure}[t]{0.8\columnwidth}
       \includegraphics[width=\figw]{Figs/throughput-uniform.png}
       \caption[]{Uniform distribution}
     \label{fig:write-throughput:uniform}
@@ -97,6 +97,46 @@ Measured on the Zipf and uniform key distributions, on SSD and HDD hardware.
 \caption{Write throughput (operations per second) of the best \sys\/ policy (\basic\/) vs \none, across multiple key distributions and disk hardware types. }
 \label{tab:write-throughput}
 \end{table*}
+
+\begin{table*}
+  \centering
+  
+    \begin{tabular}{|c|c|c|c|c|}
+      \hline
+      Policy & $\#$flushes, SSD & $\#$compactions, SSD & $\#$flushes, HDD & $\#$compactions, HDD\\
+      \hline
+      \none & 1468	&524&	1504 & 548 \\
+\basic & 1224&	355&	 1210 & 443 \\
+\adp\/ (R=0.5) &922&	309&	879 & 316 \\
+\adp\/ (R=0.35) & 754&	261&	711 &248 \\
+\adp\/ (R=0.2) & 631	&209	&630 &216 \\
+%\eager\ & {\bf 695}	& {\bf 242} &	667 & 242 \\
+      \hline
+    \end{tabular}
+
+  \caption{Number of flushes and compactions, measured for \none\/ vs \sys\/ policies, for the Zipf key distribution. 
+  The \adp\/ policy provides double-digit savings. }
+  \label{tab:counters}
+\end{table*}
+
+\begin{figure*}[t]
+  \centering
+  
+  \begin{subfigure}[t]{\columnwidth}
+      \includegraphics[width=\figw]{Figs/volume-ssd.png}
+      \caption[]{SSD}
+    \label{fig:volume:ssd}
+  \end{subfigure}
+  \begin{subfigure}[t]{\columnwidth}
+      \includegraphics[width=\figw]{Figs/volume-hdd.png}
+      \caption[]{HDD}
+    \label{fig:volume:hdd}
+  \end{subfigure}
+
+  \caption{Bytes written by flushes and compactions, measured for \none\/ vs \sys\/ policies, for the Zipf key distribution. 
+  The \adp\/ policy provides double-digit savings to disk I/O. }
+  \label{fig:volume}
+\end{figure*}
 
 \subsubsection{Write-Only Workloads}
 
@@ -137,46 +177,6 @@ on HDD. In contrast, \adp slashes the number of flushes and compactions by $58\%
 respectively, and the number of bytes written by almost $30\%$. As expected, the lower the 
 redundancy estimate threshold $R$, the more aggressive the algorithm, and consequently, 
 the higher the savings. Figure~\ref{fig:volume} and Table~\ref{tab:counters} summarize the results. 
-
-\begin{table*}
-  \centering
-  
-    \begin{tabular}{|c|c|c|c|c|}
-      \hline
-      Policy & $\#$flushes, SSD & $\#$compactions, SSD & $\#$flushes, HDD & $\#$compactions, HDD\\
-      \hline
-      \none & 1468	&524&	1504 & 548 \\
-\basic & 1224&	355&	 1210 & 443 \\
-\adp\/ (R=0.5) &922&	309&	879 & 316 \\
-\adp\/ (R=0.35) & 754&	261&	711 &248 \\
-\adp\/ (R=0.2) & 631	&209	&630 &216 \\
-%\eager\ & {\bf 695}	& {\bf 242} &	667 & 242 \\
-      \hline
-    \end{tabular}
-
-  \caption{Number of flushes and compactions, measured for \none\/ vs \sys\/ policies, for the Zipf key distribution. 
-  \sys\/ provides double-digit savings to disk I/O. The \eager\/ policy is the optimal in this respect. }
-  \label{tab:counters}
-\end{table*}
-
-\begin{figure*}[t]
-  \centering
-  
-  \begin{subfigure}[t]{\columnwidth}
-      \includegraphics[width=\figw]{Figs/volume-ssd.png}
-      \caption[]{SSD}
-    \label{fig:volume:ssd}
-  \end{subfigure}
-  \begin{subfigure}[t]{\columnwidth}
-      \includegraphics[width=\figw]{Figs/volume-hdd.png}
-      \caption[]{HDD}
-    \label{fig:volume:hdd}
-  \end{subfigure}
-
-  \caption{Bytes written by flushes and compactions, measured for \none\/ vs \sys\/ policies, for the Zipf key distribution. 
-  \sys\/ provides double-digit savings to disk I/O. The \eager\/ policy is the optimal in this respect.. }
-  \label{fig:volume}
-\end{figure*}
 
 Note that the amount of data written to WAL %,186GB 
 (approximately $45$\% of the write volume), remains constant across all the experiments. 
