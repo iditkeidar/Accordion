@@ -443,6 +443,9 @@ Peak throughput is with 5 and 4 entries in the pipeline in SSD and HDD respectiv
 \label{fig:pipeline-1-hdd}
 \end{figure}
 
+With the optimal parameter found for \basic\ (A=0.02) \eager\/ performs poorly since compacting the data so frequently is ineffective. Figure~\ref{fig:eager-throughput} shows that when the active segment is much bigger (A=0.25) \eager\ performs much better, it outperforms the baseline by $20\%$.
+In addition we see that the write volume for \eager\ is the roughly the same in these two settings while for \basic\ the write volume increases with the size of the active fraction.  
+
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/eager-throughput.png}
 \caption{{\bf Throughput (op/sec)} Eager vs. basic in defferent settings 
