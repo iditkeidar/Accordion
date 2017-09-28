@@ -45,6 +45,9 @@ is less representative of real workloads -- studied for reference only). The Zip
 is generated following the description in~\cite{Gray:1994:QGB:191839.191886}, with $\theta=0.99\%$ 
 (YCSB standard).
 
+Depending on the setting (workload, algorithm and hardware type), a single experiment duration varies 
+from approximately 1.5 hours to over 12 hours.  
+
 \subsection{Evaluation Results}
 \label{ssec:results}
 
@@ -84,9 +87,9 @@ Measured on the Zipf and Uniform key distributions, on SSD and HDD hardware.
 \label{tab:write-throughput}
 \end{table*}
 
-The first experiment exercises only put operations. It starts from an empty table and performs 500M puts, 
-in parallel from 12 client threads. We study the Zipf and the uniform key distributions. Depending on the setting 
-(workloads, policies and hardware type), our experiments run for approximately 1.5 hours to over 12 hours.  
+The first benchmark set exercises only put operations. It starts from an empty table and performs 500M puts, 
+in parallel from 12 client threads. We study the Zipf and the uniform key distributions. The experiments measure
+write throughput (latency is not meaningful because puts are batched), as well as disk I/O and GC metrics. 
 Every data point is averaged across five runs. 
 
 Figure~\ref{fig:write-throughput} depicts the throughput speedup for settings, 
