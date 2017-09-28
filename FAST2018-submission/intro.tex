@@ -79,9 +79,8 @@ We conclude that the algorithm's contribution to overall system performance is s
 especially under a  heavy-tailed (Zipf) key access distribution with 
 small objects, as occurs in many production use cases~\cite{Wu2015}. For example, \sys\/ 
 improves the system's write throughput by up to $48\%$, and reduces read tail latency 
-(in HDD settings)  
-by up to $40\%$. At the same time, it reduces the write volume by up to \inred{XX\%}. Surprisingly, we see 
-that in most settings, disk I/O is \emph{not} the principal bottleneck. Rather, the memory management 
+(in HDD settings) by up to $40\%$. At the same time, it reduces the disk flush and compaction write volume by up $30$\%. 
+Surprisingly, we see that in most settings, disk I/O is \emph{not} the principal bottleneck. Rather, the memory management 
 overhead is more substantial: the improvements are highly correlated with  reduction in \emph{garbage collection (GC)} time. 
 
 In summary, \sys\ grows and shrinks the system's memory footprint like accordion bellows, giving it breathing 

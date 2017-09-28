@@ -140,7 +140,7 @@ Measured on the Zipf and uniform key distributions, on SSD and HDD hardware.
 
 \subsubsection{Write-Only Workloads}
 
-The first benchmark set exercises only put operations. It starts from an empty table and performs 500M puts, 
+Our first benchmark set exercises only put operations. It starts from an empty table and performs 500M puts, 
 in parallel from 12 client threads. We study the Zipf and the uniform key distributions. The experiments measure
 write throughput (latency is not meaningful because puts are batched), as well as disk I/O and GC metrics. 
 Every data point is averaged across five runs. 
@@ -202,24 +202,7 @@ are in clear negative linear correlation.
 
 \subsubsection{Read-Write Workloads}
 
-\begin{figure*}[t]
-  \centering
-  
-  \begin{subfigure}[t]{\columnwidth}
-      \includegraphics[width=\figw]{Figs/latency-speedup-ssd.png}
-      \caption[]{SSD}
-    \label{fig:volume:ssd}
-  \end{subfigure}
-  \begin{subfigure}[t]{\columnwidth}
-      \includegraphics[width=\figw]{Figs/latency-speedup-hdd.png}
-      \caption[]{HDD}
-    \label{fig:volume:hdd}
-  \end{subfigure}
-
-  \caption{xyz}
-  \label{fig:latency-speedup}
-\end{figure*}
-
+Our second benchmark studies get latencies under heavy write traffic. 
 
 \subsubsection{Parameter Tuning} \label{ssec:tuning}
 
