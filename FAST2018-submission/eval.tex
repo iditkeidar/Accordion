@@ -77,7 +77,7 @@ Section~\ref{ssec:tuning} presents our parameter exploration.
     \label{fig:write-throughput:uniform}
   \end{subfigure}
 
-\caption{Write throughput speedup vs \none\/ (legacy) achieved by \sys\/ with \basic\/ and \adp\/ policies. 
+\caption{Write throughput speedup vs \none\/ (HBase legacy MemStore) achieved by \sys\/ with \basic\/ and \adp\/ policies. 
 Measured on the Zipf and uniform key distributions, on SSD and HDD hardware. In SSD systems, 
 \basic\/ increases the write throughput by close to $48$\%. 
 } 
@@ -117,8 +117,7 @@ Measured on the Zipf and uniform key distributions, on SSD and HDD hardware. In 
       \hline
     \end{tabular}
 
-  \caption{Number of flushes and compactions, measured for \none\/ vs \sys\/ policies, for the Zipf key distribution. 
-  The \adp\/ policy provides double-digit savings. }
+  \caption{Number of flushes and compactions, measured for \none\/ vs \sys\/ policies, for the Zipf key distribution.  }
   \label{tab:counters}
 \end{table*}
 
@@ -137,7 +136,7 @@ Measured on the Zipf and uniform key distributions, on SSD and HDD hardware. In 
   \end{subfigure}
 
   \caption{Bytes written by flushes and compactions, measured for \none\/ vs \sys\/ policies, for the Zipf key distribution. 
-  The \adp\/ policy provides double-digit savings to disk I/O. }
+  The \adp\/ policy provides double-digit savings for disk I/O. }
   \label{fig:volume}
 \end{figure*}
 
@@ -186,8 +185,9 @@ on the I/O side. Going forward, we focus on the more realistic Zipf workload.
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/gc-throughput-log2.png}
 \caption{GC time (cumulative, per minute) vs write throughput, measured on SSD machines 
-for multiple \sys\/ policies and configurations, for the Zipf  key distribution. The metrics, in log-log scale, 
-are in clear negative linear correlation. 
+for multiple \sys\/ policies and configurations, for the Zipf  key distribution. Each data point 
+depicts the throughput vs GC time of one experiment. Both axes are in log-log scale.  
+The graph shows a clear negative correlation between the two metrics. 
 }
 \label{fig:gc-throughput-log2}
 \end{figure}
@@ -222,14 +222,16 @@ the higher the savings. Figure~\ref{fig:volume} and Table~\ref{tab:counters} sum
 
 Note that the amount of data written to WAL %,186GB 
 (approximately $45$\% of the write volume) remains constant across all  experiments. 
-HBase operators odten choose placing log files on inexpensive hard disks, since they are only needed for recovery,
+HBase operators often choose placing log files on inexpensive hard disks, since they are only needed for recovery,
 and so disk wear is not a major concern for WAL data.
 
-\paragraph{Insights} Summing up, there is a tradeoff between write throughput and storage utilization 
+All-in-all, there is a tradeoff between the write throughput and storage utilization 
 provided by the different \sys\/ policies. \adp\/ provides multiple operating points that trade major 
-storage savings for minor performance losses. Redundancy elimination proved to be less impactful 
-than reduction in GC cycles, especially in systems with fast SSD hardware. 
+storage savings for minor performance losses.
 
+\paragraph{Garbage collection}
+ Redundancy elimination proved to be less impactful 
+than reduction in GC cycles, especially in systems with fast SSD hardware. 
 Figure~\ref{fig:gc-throughput-log2}, which studies GC overhead for a range of policies and tuning 
 parameters, further corroborates our hypothesis. It shows a clear negative correlation between the 
 GC time and the write throughput. 
@@ -416,7 +418,7 @@ Figure~\ref{fig:latency-speedup-hdd} depicts the latency speed-up \basic\ and \m
 
 \subsubsection{Parameter Tuning} \label{ssec:tuning}
 One of the main sources for memory management overhead is the skiplist data structure used to index the active fraction of the memory component.
-Not only it is bigger in size compared to a flat index it is also fragmented whereas static index is stored in a consecutive block of memory, therefore it incurs smaller overhead in terms of allocation, gc and cache misses.
+Not only it is bigger in size compared to a flat index it is also fragmented whereas static index is stored in a consecutive block of memory, therefore it incurs smaller overhead in terms of allocation, GC and cache misses.
 We evaluate \basic\ strategy with different active fraction sizes: A=0.25, 0.1, 0.05, 0.02. 
 The \none\ strategy has no static portion in the memory component therefore its throughput is added at the point where A=1.0.
 We measure their throughput in write-only workload with Zipf distribution.
@@ -462,7 +464,7 @@ In addition we see that the write volume for \eager\ is the roughly the same in 
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/eager-throughput.png}
-\caption{{\bf Throughput (op/sec)} Eager vs. basic in defferent settings 
+\caption{{\bf Throughput (op/sec)} Eager vs. basic in different settings 
 }
 \label{fig:eager-throughput}
 \end{figure}
@@ -489,7 +491,7 @@ For example when running similar workload with 100 regions and 16GB heap per reg
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/eager-volume.png}
-\caption{{\bf Write volume} Eager vs. basic in defferent settings
+\caption{{\bf Write volume} Eager vs. basic in different settings
 }
 \label{fig:eager-volume}
 \end{figure}
