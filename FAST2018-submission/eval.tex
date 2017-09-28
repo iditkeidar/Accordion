@@ -76,7 +76,8 @@ Section~\ref{ssec:tuning} describes the exploration procedure.
   \end{subfigure}
 
 \caption{Write throughput speedup vs \none\/ (legacy) achieved by \sys\/ with \basic\/ and \adp\/ \sys\/ policies. 
-Measured on the Zipf and uniform key distributions, on SSD and HDD hardware. 
+Measured on the Zipf and uniform key distributions, on SSD and HDD hardware. In SSD systems, 
+\basic\/ increases the write throughput by close to $48$\%. 
 } 
 \label{fig:write-throughput}
 \end{figure*}
@@ -171,6 +172,37 @@ on the I/O side. Going forward, we focus on the Zipf workload as more realistic,
 forgo the \eager\/ heuristic. 
 
 \paragraph{I/O metrics}
+
+\begin{figure}[htb]
+\includegraphics[width=\figw]{Figs/gc-throughput-log2.png}
+\caption{GC time (cumulative, per minute) vs write throughput, measured on SSD machines 
+for multiple \sys\/ policies and configurations, for the Zipf  key distribution. The metrics, in log-log scale, 
+are in clear negative linear correlation. 
+}
+\label{fig:gc-throughput-log2}
+\end{figure}
+
+\begin{figure*}[t]
+  \centering
+  
+  \begin{subfigure}[t]{.9\columnwidth}
+      \includegraphics[width=\figw]{Figs/latency-ssd.png}
+      \caption[]{SSD}
+    \label{fig:latency:ssd}
+  \end{subfigure}
+  \begin{subfigure}[t]{1.1\columnwidth}
+      \includegraphics[width=\figw]{Figs/latency-hdd.png}
+      \caption[]{HDD}
+    \label{fig:latency:hdd}
+  \end{subfigure}
+
+  \caption{Read latency speedup (resp., slowdown) of \basic\/ and \adp\/ versus \none, under high write contention.
+  Latencies are broken down by percentile. In HDD systems, \adp\/ delivers up to $40$\% tail latency reduction. 
+  }
+  
+  \label{fig:latency}
+\end{figure*}
+
 With respect to disk use by flushes and compactions, the picture is reverse to system throughput. 
 \basic\/ provides modest savings. It writes $13$\% less bytes than \none\/ on SSD, and $8$\% 
 on HDD. In contrast, \adp slashes the number of flushes and compactions by $58\%$ and $61$\%, 
@@ -188,21 +220,29 @@ storage savings for minor performance losses. Redundancy elimination proved to b
 than reduction in GC cycles, especially in systems with fast SSD hadrdware. 
 
 Figure~\ref{fig:gc-throughput-log2}, which studies GC overhead for a range of policies and tuning 
-parameters, further corroborates our hypothesis. It shows a clear negative correlation between the GC time 
-and the write throughput. 
-
-\begin{figure}[htb]
-\includegraphics[width=\figw]{Figs/gc-throughput-log2.png}
-\caption{GC time (cumulative, per minute) vs write throughput, measured on SSD machines 
-for multiple \sys\/ policies and configurations, for the Zipf  key distribution. The metrics, in log-log scale, 
-are in clear negative linear correlation. 
-}
-\label{fig:gc-throughput-log2}
-\end{figure}
+parameters, further corroborates our hypothesis. It shows a clear negative correlation between the 
+GC time and the write throughput. 
 
 \subsubsection{Read-Write Workloads}
 
-Our second benchmark studies get latencies under heavy write traffic. 
+Our second benchmark studies read latencies under heavy write traffic. 
+We run batched puts from 10 client threads and single-key gets from two other threads. 
+The keys of all operations are distributed identically (Zipf). We measure the $50$th, 
+$75$th, $90$th, $95$th and $99$th get latency percentiles. Figure~\ref{fig:latency} 
+depicts the relative latency speedup of \basic\/ and \adp\/ ($R=0.2$) versus \none\/ 
+(values greater than 1 mean slowdown). 
+
+The HDD systems enjoy a dramatic reduction in tail latencies ($15$\% to $40$\%, for \adp). 
+We explainthis as follows. The tail latencies are cache misses that are served from disk. 
+The latter are most painful with HDD's. Thanks to in-memory compaction, \adp\/ prolongs 
+the lifetime of data in MemStore. Therefore, more results are served from MemStore, i.e., 
+there are less attempts to read from cache, and consequently from disk, in case of miss.  
+
+In SSD systems, the get latencies are marginally slower in all percentiles (e.g., the 
+$95$th percentile is $2.13$ms in \none\/ versus $2.26$ms in \adp). This happens
+because most reads are dominated by in-memory search speed, which depends on the 
+number of segments in the MemStore pipeline (in our experiment, 1 to 5). The other factor
+is increased GC overhead in \adp\/ that stems from redundancy elimination. 
 
 \subsubsection{Parameter Tuning} \label{ssec:tuning}
 
