@@ -63,7 +63,9 @@ We introduce \sys, an algorithm for memory store management in LSM trees.
  than disk flushes.  The static segments have an optimized memory
  layout (flat index), which reduces their footprint. The algorithm also 
  performs \emph{in-memory compactions}, which eliminate redundant %(removed or overwritten) 
- data before it is written to disk. \sys's data organization is illustrated in Figure~\ref{fig:accordion};
+ data before it is written to disk. As a result, \sys\ delays disk flushes, which both reduces 
+ the write volume and improves read latency as more reads can be satisfied from RAM.
+  \sys's data organization is illustrated in Figure~\ref{fig:accordion};
  Section~\ref{sec:accordion} fleshes out its details. 
 
 % Status
@@ -76,12 +78,14 @@ We study production-size datasets and data layouts, with multiple storage types 
 We conclude that the algorithm's contribution to overall system performance is substantial, 
 especially under a  heavy-tailed (Zipf) key access distribution with 
 small objects, as occurs in many production use cases~\cite{Wu2015}. For example, \sys\/ 
-improves the system's write throughput by up to $\inred{47\%}$, and reduces the tail read latency by up to 
-\inred{XX\%}. At the same time, it reduces the write volume by up to \inred{XX\%}. Surprisingly, we see 
+improves the system's write throughput by up to $48\%$, and reduces read tail latency 
+(in HDD settings)  
+by up to $40\%$. At the same time, it reduces the write volume by up to \inred{XX\%}. Surprisingly, we see 
 that in most settings, disk I/O is \emph{not} the principal bottleneck. Rather, the memory management 
-overhead is more substantial: the improvements are highly correlated with  reduction in garbage collection (GC) time. 
+overhead is more substantial: the improvements are highly correlated with  reduction in \emph{garbage collection (GC)} time. 
 
 In summary, \sys\ grows and shrinks the system's memory footprint like accordion bellows, giving it breathing 
 room. Our experiments show that it significantly improves end-to-end system performance and reduces disk wear, 
-which led to the recent adoption of this solution in HBase. Section~\ref{sec:conclusions} concludes the paper.
+which led to the recent adoption of this solution in HBase. Section~\ref{sec:related} discusses related work, 
+and Section~\ref{sec:conclusions} concludes the paper.
 

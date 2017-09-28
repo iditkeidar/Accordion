@@ -7,9 +7,10 @@ and implementation details in Section~\ref{ssec:impl-details}.
 
 \begin{figure}[tbh]
 \center
-\includegraphics[width=\columnwidth, trim={0 1cm 0 1cm}, clip]{Accordion} 
-\caption{\sys's compacting memory store architecture. The memory store includes a small dynamic active segment 
-and a pipeline of flat segments. }
+\includegraphics[width=\columnwidth]{Accordion} 
+\caption{\sys's compacting memory store architecture adds a pipeline of flat segments between the active segment and the snapshot. 
+The memory store includes a small dynamic active segment 
+and a pipeline of flat segments. A disk flush creates a snapshot of the pipeline for writing to disk.}
 \label{fig:accordion}
 \end{figure}
 
@@ -26,65 +27,94 @@ it absorbs  put operations. The rest of the segments are immutable. Get and scan
 \end{itemize}
 
 \noindent
-As our experiments show (Section~\ref{sec:eval}), the most effective parameter values are quite small.
-%(\inred{$0.02 \leq A \leq 0.05$}, and \inred{$1 \leq S \leq 3$}).
+As our experiments show (Section~\ref{sec:eval}), the most effective parameter values are quite small, 
+e.g., $0.02 \leq A \leq 0.05$, and $1 \leq S \leq 5$.
 
 The memory store dynamics are as follows. 
-Once the active segment grows to a $A$ fraction of the memory store's size bound, an \emph{in-memory flush} is invoked.
-The \ingreen{in-memory} flush makes the active segment immutable and adds it to the pipeline; it creates a new active segment to replace it. \ingreen{Unless the new number of immutable segments in the pipeline exceeds $S$, the \emph{flattening of intra-segment search indices} starts immediately on the newly added segment. This implies, replacing dynamic segment indices such as skiplists by 
-compact ordered arrays, which are suitable for immutable data. }
-Once the number of immutable segments exceeds $S$, a background \emph{in-memory compaction} is invoked to shrink
-the pipeline back. It applies one or more mechanisms: 
-\begin{enumerate}
-%\item {\em Flattening of intra-segment search indices.} Replaces dynamic segment indices such as skiplists by 
-%compact ordered arrays, which are suitable for immutable data. 
+Once the active segment grows to its size bound (a fraction $A$ of the memory store's size bound), an \emph{in-memory flush} is invoked.
+The in-memory flush makes the active segment immutable and creates a new active segment to replace it. 
+The replaced active segment is then added to the pipeline in one of three ways. 
+\begin{description}
+\item[Flattening of intra-segment search indices.] 
+In case there is available space in the pipeline (the number of pipeline segments is smaller than $S$), 
+the segment is simply flattened. This involves replacing dynamic segment indices such as skiplists by 
+compact ordered arrays, which are suitable for immutable data. 
+\end{description}
+Flattening reduces the MemStore's memory footprint, which delays  disk flushes, positively affecting both read latency  (by increasing the MemStore's hit rate) and write volume.
+
+Once the number of immutable segments exceeds $S$, \emph{in-memory compaction} applies one of the following mechanisms: 
+\begin{description}
+\item[Merging pipeline segments' search indices.]
  \remove{ % Off-heap stuff omitted due to lack of evaluation
  % To Do: move to conclusions
- An additional advantage of the flat layout  is that in managed environments, 
-the index can be relocated to off-heap (unmanaged) memory, which can improves performance predictability 
-through reduced garbage collection jitter~\cite{alibabahbase}. 
+  An additional advantage of the flat layout  is that in managed environments, 
+ the index can be relocated to off-heap (unmanaged) memory, which can improves performance predictability 
+ through reduced garbage collection jitter~\cite{alibabahbase}. 
 }
-\item {\em Merging multiple segments' search indices.} 
-Replaces multiple segments with one by creating a single index covering data that resides 
+This process replaces multiple segments with one by creating a single index covering data that resides 
 in the original segments. This is a lightweight process that does not eliminate redundant 
-data versions, and hence does not involve physical data copy. 
-\item  {\em Merging multiple segments' data.} Extends the above with redundant data elimination --
-creates a flat index with no redundancies, and disposes the redundant data cells. 
+data versions.
+%, and hence does not involve physical data copy. 
+\item[Merging pipeline segments' data.]
+This process extends the above with redundant data elimination -- it 
+creates a flat index with no redundancies, and disposes redundant data cells. 
 \remove{ % Slab stuff omitted due to lack of evaluation
 In case the memstore manages its cell data storage internally, the surviving cells are relocated
 to new slabs; otherwise, the redundant cells are simply de-referenced, and later garbage-collected.    
 }
-\end{enumerate} 
-The choice of compaction mechanisms to employ is guided by the policies described in Section~\ref{ssec:policies}.
+\end{description} 
+The choice of compaction mechanisms to employ is guided by the policies described in Section~\ref{ssec:policies} below.
 
-Flushes to disk work the same way as in a standard LSM tree. A disk flush \ingreen{shifts to snapshot all pipeline segments. The pipeline is emptied and ready to absorb new flat segments. The snapshot's list of immutable, flat segments is not a part of the pipeline, and is going to be freed once written to storage.} The background flush process merges the snapshot's 
-segments while eliminating the redundancies, and streams the result to a new file. Note that the disk flush process
-may happen concurrently to in-memory compaction. In that case, the latter is aborted. This behavior is absolutely
-valid since in-memory compaction it is an optimization that may be retried later.
+Flushes to disk work the same way as in a standard LSM tree. A disk flush shifts all pipeline segments to the snapshot. The pipeline is emptied and ready to absorb new flat segments. The snapshot's immutable flat segments are not part of the pipeline, and are freed once they are written to storage. The background flush process merges the snapshot
+segments while eliminating  redundancies, and streams the result to a new file. 
+
+In case the disk flush process empties the pipeline while an in-memory compaction process is attempting to merge some segments, the latter aborts.  This behavior is valid since in-memory compaction is an optimization.
 
 \subsection{Compaction Policies} \label{ssec:policies}
 
-We implement three in-memory compaction policies: 
+There is a tradeoff between the two in-memory compaction mechanisms. Merging only search indices without removing redundancies is a lighter-weight process.  Moreover, this approach is friendly to the managed memory system because the entire segment is freed at once, whereas 
+the data-merging alternative burdens the memory management system (in particular, the garbage collector) by
+constantly releasing small objects. On the other hand, the index-merging approach  
+consumes memory for overwritten data; this is significant in production-like heavy-tailed distributions where some keys are frequently overwritten.
+By removing these redundancies, the data-merging approach further delays disk flushes, which both improves read latency  (thanks to more 
+queries being satisfied from memory) and reduces write volume.
+
+In our HBase deployment, we implemented two policies corresponding to these two in-memory compaction approaches:
 \begin{description}
-\item[\basic] (low-overhead). Once a segment becomes immutable, flattens its index. Once the pipeline size exceeds $S$, 
-merges all segment indices into one.  
+\item[\basic] (low-overhead). Once a segment becomes immutable, flatten its index. Once the pipeline size exceeds $S$, 
+merge all segment indices into one.  
 \item[\eager] (high-overhead, high-reward under self-similar workloads). 
-In addition to \basic\/ mechanisms, eliminates data redundancies across pipeline segments.
-\item[\adp] (the best of all worlds)\footnote{\small{Not committed to production code yet.}}. A heuristic that chooses 
-whether to apply data compaction (as in \eager) or not (as in \basic) based on the level of redundancy in the data 
-and the perceived cost-effectiveness of compaction. Works at store level, i.e., triggers redundancy elimination 
-only for those stores where positive impact is expected. 
+Once a segment becomes immutable, merge its index and data with the current (single) pipeline segment.
+% In addition to \basic\/ mechanisms, eliminate data redundancies across pipeline segments.
 \end{description}
 
-\adp\/ triggers in-memory compaction with probability $t$ if the fraction of redundant keys $r$ exceeds a parameter 
-threshold $R$. In this context, $t$ is the throttling factor, which captures the compaction's worthiness. It starts from 
-$T=0.5$, grows exponentially by $2\%$ with the number of in-memory flushes, and is reset back to $T$ upon
-disk flush. The rationale is that compactions become more effective as the memory store grows bigger. 
+Our experiments (reported in the next section) show that the \eager\ policy is typically too aggressive, in particular when $A$ is small,
+and the benefits from reducing the memory footprint are offset by the increased management (and in particular, garbage collection) overhead.
+We therefore present in this paper a third policy:
+\begin{description}
+\item[\adp] (the best of all worlds)\footnote{\small{Not committed to production code yet.}}. A heuristic that chooses 
+whether to apply data compaction (as in \eager) or not (as in \basic) based on the level of redundancy in the data 
+and the perceived cost-effectiveness of compaction. \adp\ works at the level of a single LSM store, i.e., triggers 
+redundancy elimination only for those stores where positive impact is expected. 
+\end{description}
 
-$r$ is the complement of the ratio of unique keys in the memory store, denoted  $u$. The latter is approximated 
-as the fraction of unique keys produced when merging the segment indexes during the previous compaction. 
-Note that $u$ is an estimate, since compactions do not cover the current active segment. However, since the latter 
-is a small portion of data, the error is insignificant. 
+\adp\ uses two parameters to determine whether to perform redundancy elimination.
+The first is a throttling parameter $t$ based on the amount of data that can benefit from redundancy elimination. 
+Initially, $t=0.5$; it then grows exponentially by $2\%$ with the number of in-memory flushes, and is reset back to 
+the default value (namely $0.5$) upon disk flush. Thus, $t$ is bigger when there is more data in the MemStore.
+The second parameter, $u$, estimates the ratio of unique keys in the memory store based on the 
+fraction of unique keys encountered during the previous merge of segment indices. 
+The accuracy of $u$ at a given point in time depends on the number of merges that occurred since the last disk flush
+or data-merge.
+Initially, $u$ is zero, and so the first in-memory compaction does not employ data-merge.
+Then, the estimate is based on the $S$ merged components, which at the time for the second in-memory compaction
+is roughly one half of the relevant data, since the pipe holds $S-1$ unmerged components. 
+Over time, $u$ becomes more accurate while $t$ grows. 
+
+\adp\/ triggers redundancy elimination with probability $t$ if the fraction of redundant keys $1-u$ exceeds a parameter 
+threshold $R$. The rationale for doing so is that prediction based on $u$ becomes more accurate with time, whence 
+compactions become more important because the component is bigger and more space can be saved.
+
 
 \remove{
 \begin{description}
@@ -106,21 +136,22 @@ compactions become more important because the component is bigger and more space
 
 \subsection{Implementation Details} \label{ssec:impl-details}
 
-A compacting memstore is comprised from the active segment and a double-ended queue (pipeline) of inactive segments. 
-The pipeline is accessed by read API's (get and scan), as well as by background disk flushes and in-memory compactions. 
-The latter two modify the pipeline, by adding/removing/replacing segments. These modifications happen infrequently. 
+A compacting memstore is comprised of an active segment and a double-ended queue (pipeline) of inactive segments. 
+The pipeline is accessed by read APIs (get and scan), as well as by background disk flushes and in-memory compactions. 
+The latter two modify the pipeline by adding/removing/replacing segments. These modifications happen infrequently. 
 
 The pipeline readers and writers coordinate through a lightweight copy-on-write, as follows. The pipeline object is versioned. 
 Each modification promotes the version number, and atomically swaps the global reference to the new version clone. Note
 that cloning is inexpensive -- only the segment references are copied since the segments themselves are immutable. 
 
 The reads access the segments lock-free, through the version obtained at the beginning of the operation. If a disk flush
-is scheduled in the middle of a read, a segment may migrate from the pipeline to the pre-flush snapshot buffer. The read 
-safety is guaranteed by scanning the pipeline clone first. This way, a segment may be encountered twice but no data is 
+is scheduled in the middle of a read, a segment may migrate from the pipeline to the pre-flush snapshot buffer. The correctness of
+reads  is guaranteed by scanning the pipeline clone first. This way, a segment may be encountered twice but no data is 
 lost. The scan algorithm filters out the duplicates. 
 
 In-memory compaction is a read-modify-write operation, which swaps one or more segments in the pipeline 
 with a new segment built from their data. This operation's atomicity is guaranteed by compare-and-swap (CAS), 
 which flips pipeline version only if the latter did not change since the compaction started.  For example, in-memory
-compaction fails if a disk flush concurrently removes some segments from the pipeline (Section~\ref{ssec:overview}). 
+compaction fails if a disk flush concurrently removes some segments from the pipeline.
+% (Section~\ref{ssec:overview}). 
 
