@@ -246,7 +246,6 @@ because most reads are dominated by in-memory search speed, which depends on the
 number of segments in the MemStore pipeline (in our experiment, 1 to 5). The other factor
 is increased GC overhead in \adp\/ that stems from redundancy elimination. 
 
-\subsubsection{Parameter Tuning} \label{ssec:tuning}
 
  \remove{ 
 
@@ -404,27 +403,30 @@ Figure~\ref{fig:latency-speedup-hdd} depicts the latency speed-up \basic\ and \m
 }
 \label{fig:latency-speedup-hdd}
 \end{figure}
+}
 
-\paragraph{Parameter exploration.}
-One of the main sources for memory management overhead is the skip-list data structure used to index the dynamic fraction of the memory component.
-Not only it is bigger in size compared to a flat index it is also fragmented whereas static index is stored in a consecutive block of memory, therefore it incurs smaller overhead in terms of allocation, GC and cache misses.
-We evaluate \basic\ strategy with different dynamic fraction sizes. We measure their throughput in write-only workload with Zipf distribution.
-The throughput results of all runs are depicted in  Figure~\ref{fig:dynamic-fraction}. 
-The \none\ strategy has no static portion in the memory component therefore its throughput is added at the point where the dynamic fraction size is equal to 1.0.
-Figure~\ref{fig:dynamic-fraction} shows that indeed the store scales as the dynamic fraction size decreases. 
+\subsubsection{Parameter Tuning} \label{ssec:tuning}
+One of the main sources for memory management overhead is the skip-list data structure used to index the active fraction of the memory component.
+Not only it is bigger in size compared to a flat index it is also fragmented whereas static index is stored in a consecutive block of memory, therefore it incurs smaller overhead in terms of allocation, gc and cache misses.
+We evaluate \basic\ strategy with different active fraction sizes: A=0.25, 0.1, 0.05, 0.02. 
+The \none\ strategy has no static portion in the memory component therefore its throughput is added at the point where A=1.0.
+We measure their throughput in write-only workload with Zipf distribution.
+The throughput results of all 5 runs are depicted in  Figure~\ref{fig:dynamic-fraction}. 
+It shows that indeed the store scales as the active fraction size decreases. 
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/dynamic-fraction-1.png}
-\caption{{\bf Dynamic fraction tuning.} The throughput increases as the dynamic fraction size decreases.
+\caption{{\bf Active fraction tuning.} The throughput increases as the active fraction size decreases.
 }
 \label{fig:dynamic-fraction}
 \end{figure}
 
-When the dynamic fraction is less than $10\%$ it is clear that merging it into the much bigger static data over and over again can be inefficient as it creates a new index and dismisses the old one. 
-The alternative is to enable several segments to wait in the pipeline before they are merged to a single segment. This helps with creating new index less frequently.
+When the active fraction is less than $10\%$ it is clear that merging it into the much bigger static data over and over again can be inefficient as it creates a new index and dismisses the old one. 
+The alternative is to allow several segments to wait in the pipeline before they are merged into a single segment. This helps with creating new indices less frequently.
 On the flip side, each segment in the pipeline calls for a separate scanner during read operations which can degrade their performance.
 %Hence, we run the same experiments as explained above, varying the limit for the size of pipeline.
-Figures~\ref{fig:pipeline-1-ssd} and~\ref{fig:pipeline-1-hdd} depict the throughput results as a function of the pipeline size. Peak throughput is with XX entries in the pipeline.
+Figures~\ref{fig:pipeline-1-ssd} and~\ref{fig:pipeline-1-hdd} depict the throughput results as a function of the number of segments in the pipeline. 
+Peak throughput is with 5 and 4 entries in the pipeline in SSD and HDD respectively.
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/pipeline-1-ssd.png}
@@ -433,6 +435,7 @@ Figures~\ref{fig:pipeline-1-ssd} and~\ref{fig:pipeline-1-hdd} depict the through
 \label{fig:pipeline-1-ssd}
 \end{figure}
 
+
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/pipeline-1-hdd.png}
 \caption{{\bf Pipeline size tuning - HDD.} 
@@ -440,6 +443,16 @@ Figures~\ref{fig:pipeline-1-ssd} and~\ref{fig:pipeline-1-hdd} depict the through
 \label{fig:pipeline-1-hdd}
 \end{figure}
 
+\begin{figure}[htb]
+\includegraphics[width=\figw]{Figs/eager-throughput.png}
+\caption{{\bf Throughput (op/sec)} Eager vs. basic in defferent settings 
+}
+\label{fig:eager-throughput}
+\end{figure}
+
+
+
+\remove{
 With a different experimental setup the tuning results are different.
 For example when running similar workload with 100 regions and 16GB heap per region server we get different results.
 \begin{figure}[htb]
@@ -456,4 +469,11 @@ For example when running similar workload with 100 regions and 16GB heap per reg
 \label{fig:pipeline-2}
 \end{figure}
 
+
+\begin{figure}[htb]
+\includegraphics[width=\figw]{Figs/eager-volume.png}
+\caption{{\bf Write volume} Eager vs. basic in defferent settings
+}
+\label{fig:eager-volume}
+\end{figure}
 }
