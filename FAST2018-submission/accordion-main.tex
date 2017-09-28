@@ -117,9 +117,12 @@ the baseline HBase implementation and discuss some unexpected lessons learned in
 \section{Conclusions} \label{sec:conclusions}
 
 While disk compactions in LSM trees have gotten a lot of attention, their in-memory organization was, by and large,  ignored.
-In this work, we showed that applying the LSM tree principles also to RAM can improve performance and reduce disk wear. 
-We presented \sys, an algorithm for 
+In this work, we showed that applying the LSM tree principles also to RAM can significantly improve performance and reduce disk wear. 
+We presented \sys, a new memory organization for LSM trees, which employs \emph{in-memory} flushes and 
+compaction to reduce the LSM tree's memory footprint and improve the efficiency of memory mangement and access. 
+We integrated \sys\ in Apache HBase, where it became the production default following extensive testing. 
 
+We evaluated \sys\ in a variety of settings with different compaction policies 
 
 \subsection*{Acknowledgments}
 Omitted for blind review.
