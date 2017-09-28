@@ -58,9 +58,9 @@ We compare the different \sys\/ policies (\basic, \eager, and \adp\/) to the leg
 redundancy thresholds: $R=0.2$, $R=0.35$ and $R=0.5$ (the smaller the ratio, the more aggressively
 the policy triggers in-memory compaction).  
 
-For fairness of comparison, the $A$ (active segment bound) and $S$ (pipeline size bound) parameters 
-are tuned to values that optimize performance for most of the policies. We use $A=0.02$ and $S=5$.
-Section~\ref{ssec:tuning} describes the exploration procedure. 
+\sys's parameters  $A$ (active segment fraction bound) and $S$ (pipeline number of segments bound)  
+are tuned to values that optimize performance for the \basic\ version of \sys. We use $A=0.02$ and $S=5$.
+Section~\ref{ssec:tuning} presents our parameter exploration. 
 
 \begin{figure*}[tb]
 
@@ -77,7 +77,7 @@ Section~\ref{ssec:tuning} describes the exploration procedure.
     \label{fig:write-throughput:uniform}
   \end{subfigure}
 
-\caption{Write throughput speedup vs \none\/ (legacy) achieved by \sys\/ with \basic\/ and \adp\/ \sys\/ policies. 
+\caption{Write throughput speedup vs \none\/ (legacy) achieved by \sys\/ with \basic\/ and \adp\/ policies. 
 Measured on the Zipf and uniform key distributions, on SSD and HDD hardware. In SSD systems, 
 \basic\/ increases the write throughput by close to $48$\%. 
 } 
@@ -144,34 +144,42 @@ Measured on the Zipf and uniform key distributions, on SSD and HDD hardware. In 
 \subsubsection{Write-Only Workloads}
 
 Our first benchmark set exercises only put operations. It starts from an empty table and performs 500M puts, 
-in parallel from 12 client threads. We study the Zipf and the uniform key distributions. The experiments measure
+in parallel from 12 client threads. We study the Zipf and  uniform key distributions. The experiments measure
 write throughput (latency is not meaningful because puts are batched), as well as disk I/O and GC metrics. 
-Every data point is averaged across five runs. 
+Every data point is the median among five runs. 
 
-\paragraph{Write throughput} Surprisingly, the \basic\/ policy, which flattens and merges segment indexes but avoids 
+\paragraph{Write throughput} 
+Figure~\ref{fig:write-throughput} depicts the performance speedup for
+\none, \basic, and \adp. Table~\ref{tab:write-throughput} provides the absolute throughput numbers. 
+For the Zipf benchmark, the maximal speedup is $47.6\%$ on SSD and $25.4\%$ on HDD. For the uniform benchmark, 
+which has neither redundancy not locality, they are $23.8\%$ and $8.9\%$, respectively. 
+The gain is significantly larger for the system with SSD storage, 
+which is much faster on the I/O side. Being more CPU-bound than I/O-bound, its write throughput is more dependent on 
+the MemStore speed than on background writes to the filesystem.  
+
+Surprisingly, the \basic\/ policy, which flattens and merges segment indices but avoids 
 redundancy elimination, yields the largest throughput gain. We explain this as follows. By reducing the active 
 segment size to $A=2$\% of the MemStore size, all \sys\/ policies improve insertion time of new versions 
-into the dynamic index, through improved locality of access and search time in the skiplist. However, 
+into the dynamic index through improved locality of access and search time in the skiplist. However, 
 they affect the garbage collection in different ways. \basic\/ adds negligible overhead to 
 garbage collection by recycling the index arrays. Similarly to \none, it releases memory in big bursts
-upon disk flush. \eager, on the other hand, eliminates redundant data at a constant high rate,
-which is less friendly for generational GC. As we show in the sequel, GC overhead is crucial for 
-performance -- to the extent that \eager\/ does not outperform the baseline. 
+upon disk flush. 
+
+\eager\ is not included in this figure, because its performance with these parameters is below the baseline, as we show in the sequel.
+It eliminates redundant data at a constant high rate,
+which is less friendly for generational GC. And as we further show below, GC overhead is a strong predictor for 
+overall 
+performance. 
 
 \adp\/ strikes a balance between \basic\/ and \eager. Its performance is much closer to \basic\/ 
 because it is workload-driven and selective about the regions in which it performs in-memory compaction.  
 
-Figure~\ref{fig:write-throughput} depicts the performance speedup for
-\none, \basic\/ and \adp. Table~\ref{tab:write-throughput} provides the absolute throughput numbers. 
-For the Zipf benchmark, the maximal speedup are $47.6\%$ on SSD and $25.4\%$ on HDD. For the Uniform benchmark, 
-they are $23.8\%$ and $8.9\%$, respectively. The gain is significantly larger for the system with SSD storage, 
-which is much faster on the I/O side. Being more CPU-bound than I/O-bound, its write throughput is more dependent on 
-the MemStore speed than on background writes to the filesystem. 
+
 
 Note that \adp\/ is only marginally slower than \basic\/ ($3$\% to $7$\% throughput for the Zipf 
-distribution on SSD, immaterial in other cases).  In what follows, we substantiate on its savings 
-on the I/O side. Going forward, we focus on the Zipf workload as more realistic, and 
-forgo the \eager\/ heuristic. 
+distribution on SSD, immaterial in other cases).  In what follows, we substantiate  its savings 
+on the I/O side. Going forward, we focus on the more realistic Zipf workload.
+%, and  forgo the \eager\/ heuristic. 
 
 \paragraph{I/O metrics}
 
@@ -205,16 +213,17 @@ are in clear negative linear correlation.
   \label{fig:latency}
 \end{figure*}
 
-With respect to disk use by flushes and compactions, the picture is reverse to system throughput. 
+With respect to disk use by flushes and compactions, the picture is reversed. In this regard, 
 \basic\/ provides modest savings. It writes $13$\% less bytes than \none\/ on SSD, and $8$\% 
-on HDD. In contrast, \adp slashes the number of flushes and compactions by $58\%$ and $61$\%, 
+on HDD. In contrast, \adp\ slashes the number of flushes and compactions by $58\%$ and $61$\%, 
 respectively, and the number of bytes written by almost $30\%$. As expected, the lower the 
 redundancy estimate threshold $R$, the more aggressive the algorithm, and consequently, 
 the higher the savings. Figure~\ref{fig:volume} and Table~\ref{tab:counters} summarize the results. 
 
 Note that the amount of data written to WAL %,186GB 
-(approximately $45$\% of the write volume), remains constant across all the experiments. 
-HBase operators can choose placing log files on inexpensive hard disks, since they are only needed for recovery.  
+(approximately $45$\% of the write volume) remains constant across all  experiments. 
+HBase operators odten choose placing log files on inexpensive hard disks, since they are only needed for recovery,
+and so disk wear is not a major concern for WAL data.
 
 \paragraph{Insights} Summing up, there is a tradeoff between write throughput and storage utilization 
 provided by the different \sys\/ policies. \adp\/ provides multiple operating points that trade major 
