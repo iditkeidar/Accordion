@@ -56,8 +56,8 @@ We compare multiple \sys\/ policies (\basic, \eager, and \adp\/) to the legacy M
 redundancy thresholds: $R=0.2$, $R=0.35$ and $R=0.5$ (the smaller the ratio, the more aggressively
 the policy triggers in-memory compaction).  
 
-The $A$ (active segment bound) and $S$ (pipeline size bound) parameters are tuned for optimal performance, 
-separately for each policy. %We use $A=0.02$ and $S=5$.
+For fairness of comparison, the $A$ (active segment bound) and $S$ (pipeline size bound) parameters 
+are tuned to values that optimize performance for most of the policies. We use $A=0.02$ and $S=5$.
 Section~\ref{ssec:tuning} describes the exploration procedure. 
 
 \begin{figure*}[tb]
@@ -224,8 +224,6 @@ are in clear negative linear correlation.
 \subsubsection{Parameter Tuning} \label{ssec:tuning}
 
  \remove{ 
-
-
 
 
 We compare the strategies by measuring their throughput and latency. In addition we measure the write volume, that is the number of KB written to the file system, and the cumulative gc time of each run.
