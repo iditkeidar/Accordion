@@ -60,13 +60,24 @@ We introduce \sys, an algorithm for memory store management in LSM trees.
 \sys\ re-applies the classic LSM tree design principles to the memory store. Namely, it partitions this store
  into a small dynamic segment that absorbs writes, and a sequence of static segments created 
  from previous dynamic segments by \emph{in-memory flushes}; the latter occur at a higher rate
- than disk flushes.  The static segments have an optimized memory
- layout (flat index), which reduces their footprint. The algorithm also 
+ than disk flushes.  The algorithm also 
  performs \emph{in-memory compactions}, which eliminate redundant %(removed or overwritten) 
- data before it is written to disk. As a result, \sys\ delays disk flushes, which both reduces 
- the write volume and improves read latency as more reads can be satisfied from RAM.
+ data before it is written to disk.
   \sys's data organization is illustrated in Figure~\ref{fig:accordion};
- Section~\ref{sec:accordion} fleshes out its details. 
+ Section~\ref{sec:accordion} fleshes out its details.
+
+ 
+% Benefits
+This new design has three key benefits: First, the static segments have an optimized memory
+ layout (flat index), which reduces their footprint. 
+ \inred{This flat organization is readily amenable to off-heap allocation, which further reduces memory consumption
+ by eliminating the need to store Java objects for all cells. 
+ Second, \sys\ reduces the \emph{garbage collection (GC)} overhead, thus making performance more predictable.
+ The latter is important for management software (e.g., Apache ZooKeeper) that 
+relies on timeouts for detecting faulty storage nodes and initiating fail-over.} 
+ Finally, in-memory compactions delay disk flushes, which both reduces 
+ the write volume and improves read latency as more reads can be satisfied from RAM.
+
 
 % Status
 \sys\ is implemented in HBase production code; it is generally available starting the HBase 2.0 release. 
@@ -82,7 +93,7 @@ improves the system's write throughput by up to $48\%$, and reduces read tail la
 (in HDD settings)  
 by up to $40\%$. At the same time, it reduces the write volume (excluding the log) by up to $30\%$. Surprisingly, we see 
 that in many settings, disk I/O is \emph{not} the principal bottleneck. Rather, the memory management 
-overhead is more substantial: the improvements are highly correlated with  reduction in \emph{garbage collection (GC)} time. 
+overhead is more substantial: the improvements are highly correlated with  reduction in GC time. 
 
 In summary, \sys\ grows and shrinks the system's memory footprint like accordion bellows, giving it breathing 
 room. Our experiments show that it significantly improves end-to-end system performance and reduces disk wear, 

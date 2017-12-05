@@ -6,8 +6,8 @@ Google's Bigtable~\cite{Chang2008}. We sketch out their common design principles
 and terminology. 
 
 \paragraph{Data model}
-KV-stores hold data items (referred to as \emph{rows}) identified by unique 
-row keys. Each row can consist of multiple fields (\emph{columns}) identified by unique 
+KV-stores hold data items referred to as \emph{rows} identified by unique 
+row keys. Each row can consist of multiple \emph{columns} (sometimes called fields) identified by unique 
 column keys. Co-accessed columns (typically used by the same application) can be 
 aggregated into  \emph{column families} to optimize access. The data is multi-versioned, 
 i.e., multiple versions of the same row key can exist, each identified by a unique {\em timestamp}. 
@@ -17,7 +17,7 @@ column key, and a timestamp.
 The basic KV-store API includes \emph{put} (point update of one or more cells, by row key), 
 \emph{get} (point query of one or more columns, by row key, and possibly column keys), 
 and \emph{scan} (range query of one or more columns, of all keys between 
-an ordered pair of begin and end keys). 
+an ordered pair of begin and end row keys). 
 
 \begin{figure}[tb]
 \center
@@ -47,15 +47,15 @@ For locality of access, the HBase management plane (\emph{master server}) tries 
 HFiles in HDFS so that their primary replicas are collocated with the region servers that control them. 
 
 \paragraph{LSM trees}
-Each store is organized as an LSM tree, which collects writes in a memory store 
-(\emph{MemStore} in HBase), and periodically flushes the memory into a disk store, as illustrated in 
+Each store is organized as an LSM tree, which collects writes in a memory store --
+\emph{MemStore} in HBase -- and periodically flushes the memory into a disk store, as illustrated in 
 Figure~\ref{fig:LSM}. Each flush creates a new immutable HFile, ordered by row key for query efficiency. 
 HFiles are created big, hence flushes are relatively infrequent. 
 
 To allow puts to proceed in parallel with I/O, MemStore employs double buffering:
 it maintains a dynamic \emph{active} buffer absorbing puts, and a static \emph{snapshot}
 that holds the previous version of the active buffer. The latter is written to the 
-filesystem in the background. Both buffers are ordered by key, as are the HFile.  
+filesystem in the background. Both buffers are ordered by key, as are the HFiles.  
 
 % LSM puts and flushes
 A flush occurs  when either the active buffer 
@@ -69,8 +69,10 @@ In order to guarantee durability of writes between flushes, updates are first wr
 a \emph{write-ahead log} (WAL). HBase implements the logical WAL as collection of one or more physical 
 logs per region server, called \emph{HLogs}, each consisting of multiple log files on HDFS. 
 As new data gets flushed to HFiles, the old log files become redundant, and the system collects 
-them in the background. On the other hand, if some HLog grows too big, the system may forcefully
-flush before the memory bound is reached, in order to enable the log's truncation. 
+them in the background. 
+%On the other hand, 
+If some HLog grows too big, the system may forcefully
+flush the MemStore before the memory bound is reached, in order to enable the log's truncation. 
 Since logged data is only required at recovery time and is only scanned sequentially, HLogs
 may be stored on slower devices than HFiles in production (e.g., HDDs vs SSDs). 
 Real-time applications often trade durability for speed by aggregating multiple log records 
@@ -78,7 +80,7 @@ in memory prior to asynchronously writing them to WAL in a bulk.
 
 To keep the number of HFiles per store bounded, \emph{compactions} merge multiple files 
 into one, while eliminating redundant (overwritten) versions. If compactions cannot keep up
-with the flush rate, HBase may either throttle or totally block the puts until the compactions 
+with the flush rate, HBase may either throttle or totally block  puts until  compactions 
 successfully reduce the number of files. 
 
 Most compactions are \emph{minor}, 
@@ -90,7 +92,7 @@ or performed manually~\cite{hbasetuning}.
 
 % LSM gets
 The get operation searches for the key in parallel in the MemStore (both the active and the 
-snapshot buffers) and in the HFiles. The search in HFiles is expedited through Bloom 
+snapshot buffers) and in the HFiles. The HFile search  is expedited through Bloom 
 filters~\cite{Chang2008}, which eliminate most redundant disk reads. The system 
 uses a large RAM cache for popular HFile blocks (by default $40\%$ of the heap).
 
@@ -105,11 +107,11 @@ the abundance of auxiliary small objects and references, which inflate the in-me
 a high GC cost. The overhead is most significant when the managed objects are small, i.e., 
 the metadata-to-data ratio is big~\cite{Wu2015}. Second, the versioning mechanism 
 makes no attempt to eliminate redundancies prior to flush, i.e., the MemStore size  steadily grows, 
-independently of the workload. This is especially wasteful for heavy-tailed (e.g., power law) distributions 
-that are prevalent in production workloads~\cite{Devineni:2015}. 
+independently of the workload. This is especially wasteful for heavy-tailed (e.g., power law) key access distributions, 
+which are prevalent in production workloads~\cite{Devineni:2015}. 
 
-The \sys\/ algorithm takes care of precisely these problems, to boost the 
-LSM tree performance and reduce the storage wear-out. Section~\ref{sec:accordion} 
+The \sys\/ algorithm takes care of precisely these problems, to boost  
+LSM tree performance and reduce  storage wear-out. Section~\ref{sec:accordion} 
 presents it in detail. 
 
 

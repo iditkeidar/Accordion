@@ -1,7 +1,10 @@
 
 We describe  \sys's architecture and basic operation in Section~\ref{ssec:overview}.
 We then discuss in-memory compaction policies  in  Section~\ref{ssec:policies}
-and implementation details in Section~\ref{ssec:impl-details}. 
+and implementation details and thread synchronization in Section~\ref{ssec:impl-details}.
+\inred{ 
+Section~\ref{ssec:offheap} discusses off-heap allocation of  the flat memory segments.
+}
 
 \subsection{Overview} \label{ssec:overview}
 
@@ -41,6 +44,7 @@ the segment is simply flattened. This involves replacing dynamic segment indices
 compact ordered arrays, which are suitable for immutable data. 
 \end{description}
 Flattening reduces the MemStore's memory footprint, which delays  disk flushes, positively affecting both read latency  (by increasing the MemStore's hit rate) and write volume.
+\inred{It also allows for off-heap allocation, as discussed in Section~\ref{ssec:offheap} below.}
 
 Once the number of immutable segments exceeds $S$, \emph{in-memory compaction} applies one of the following mechanisms: 
 \begin{description}
@@ -51,8 +55,8 @@ Once the number of immutable segments exceeds $S$, \emph{in-memory compaction} a
  the index can be relocated to off-heap (unmanaged) memory, which can improves performance predictability 
  through reduced garbage collection jitter~\cite{alibabahbase}. 
 }
-This process replaces multiple segments with one by creating a single index covering data that resides 
-in the original segments. This is a lightweight process that does not eliminate redundant 
+This process replaces multiple segments by a single index covering data that resides 
+in all original segments. This is a lightweight process that does not eliminate redundant 
 data versions.
 %, and hence does not involve physical data copy. 
 \item[Merging pipeline segments' data.]
@@ -65,19 +69,21 @@ to new slabs; otherwise, the redundant cells are simply de-referenced, and later
 \end{description} 
 The choice of compaction mechanisms to employ is guided by the policies described in Section~\ref{ssec:policies} below.
 
-Flushes to disk work the same way as in a standard LSM tree. A disk flush shifts all pipeline segments to the snapshot. The pipeline is emptied and ready to absorb new flat segments. The snapshot's immutable flat segments are not part of the pipeline, and are freed once they are written to storage. The background flush process merges the snapshot
-segments while eliminating  redundancies, and streams the result to a new file. 
+Flushes to disk work the same way as in a standard LSM tree: A disk flush first shifts all pipeline segments to the snapshot, which is not part of the pipeline, while the pipeline is emptied so that
+it may absorb new flat segments. 
+A background flush process merges all snapshot segments while eliminating  redundancies, and streams the result to a new file. 
+After the file is written, the snapshot segments are freed. 
 
-In case the disk flush process empties the pipeline while an in-memory compaction process is attempting to merge some segments, the latter aborts.  This behavior is valid since in-memory compaction is an optimization.
+In case the disk flush process empties the pipeline while an in-memory compaction  is attempting to merge some segments, the latter aborts.  This behavior is valid since in-memory compactions are an optimization.
 
 \subsection{Compaction Policies} \label{ssec:policies}
 
 There is a tradeoff between the two in-memory compaction mechanisms. Merging only search indices without removing redundancies is a lighter-weight process.  Moreover, this approach is friendly to the managed memory system because the entire segment is freed at once, whereas 
 the data-merging alternative burdens the memory management system (in particular, the garbage collector) by
-constantly releasing small objects. On the other hand, the index-merging approach  
-consumes memory for overwritten data; this is significant in production-like heavy-tailed distributions where some keys are frequently overwritten.
+constantly releasing small objects. On the other hand, the index-merging approach  continues to 
+consume memory for overwritten data; this is significant in production-like heavy-tailed distributions where some keys are frequently overwritten.
 By removing these redundancies, the data-merging approach further delays disk flushes, which both improves read latency  (thanks to more 
-queries being satisfied from memory) and reduces write volume.
+queries being satisfied from memory) and reduces the write volume.
 
 Our HBase 2.0 implementation includes two policies corresponding to these two in-memory compaction approaches:
 \begin{description}
@@ -98,12 +104,17 @@ and the perceived cost-effectiveness of compaction. \adp\ works at the level of 
 redundancy elimination only for those stores where positive impact is expected. 
 \end{description}
 
-\adp\ uses two parameters to determine whether to perform redundancy elimination.
-The first is a throttling parameter $t$ based on the amount of data that can benefit from redundancy elimination. 
+\adp\ uses two parameters to determine whether to perform data redundancy elimination:
+\begin{enumerate}
+\item
+%The first is 
+A throttling parameter $t$  grows with the amount of data that can benefit from redundancy elimination. 
 Initially, $t=0.5$; it then grows exponentially by $2\%$ with the number of in-memory flushes, and is reset back to 
 the default value (namely $0.5$) upon disk flush. Thus, $t$ is bigger when there is more data in the MemStore.
-The second parameter, $u$, estimates the ratio of unique keys in the memory store based on the 
+\item
+The \emph{uniqueness} parameter, $u$, estimates the ratio of unique keys in the memory store based on the 
 fraction of unique keys encountered during the previous merge of segment indices. 
+\end{enumerate}
 
 Note that the accuracy of $u$ at a given point in time depends on the number of merges that occurred since the last disk flush
 or data-merge.
@@ -141,7 +152,7 @@ A compacting memstore is comprised of an active segment and a double-ended queue
 The pipeline is accessed by read APIs (get and scan), as well as by background disk flushes and in-memory compactions. 
 The latter two modify the pipeline by adding/removing/replacing segments. These modifications happen infrequently. 
 
-The pipeline readers and writers coordinate through a lightweight copy-on-write, as follows. The pipeline object is versioned. 
+The pipeline's readers and writers coordinate through lightweight copy-on-write, as follows. The pipeline object is versioned. 
 Each modification promotes the version number, and atomically swaps the global reference to the new version clone. Note
 that cloning is inexpensive -- only the segment references are copied since the segments themselves are immutable. 
 
@@ -151,8 +162,29 @@ reads  is guaranteed by scanning the pipeline clone first. This way, a segment m
 lost. The scan algorithm filters out the duplicates. 
 
 In-memory compaction is a read-modify-write operation, which swaps one or more segments in the pipeline 
-with a new segment built from their data. This operation's atomicity is guaranteed by compare-and-swap (CAS), 
-which flips pipeline version only if the latter did not change since the compaction started.  For example, in-memory
+with a new segment built from their data. This operation's atomicity is guaranteed by a compare-and-swap (CAS) operation
+that flips the pipeline version only if the latter did not change since the compaction started.  For example, in-memory
 compaction fails if a disk flush concurrently removes some segments from the pipeline.
 % (Section~\ref{ssec:overview}). 
+
+\inred{
+\subsection{Off-Heap  Allocation} \label{ssec:offheap}
+Prior to \sys, HBase allocated its MemStore on-heap, using a standard Java skiplist for the active buffer and an
+array for the snapshot. \sys\ continues to use the same data structures -- skiplist for the active segment and arrays for the flat ones. 
+Each entry in a skiplist or  an array holds a reference to a \emph{cell} object.
+The cell object is used for internal HBase scan APIs, and can reference data in two different formats: either a standard Java object
+called \emph{pojo} -- Pure Old Java Object -- or an address in a bulk-allocated array called \emph{mslab} -- Memory Slab. 
+HBase mslabs may be allocated off-heap. 
+
+\sys's off-heap version takes this approach one step further, and allocates the flat segments off-heap as well. It therefore forgoes the intermediate cell
+objects, and has the off-heap array entries in the flat segments point directly to the the off-heap mslabs. Removing the cell objects yields
+a substantial space reduction, especially when data items are small. However, it necessitates recreating temporary
+cell objects to support HBase's internal scan APIs. But this consumes  a small amount of space on-demand, and this space is deallocated rapidly, 
+which is easier for the GC process to handle.
+  
+[[Idit: 1. What about the keys? 2. Add pictures.]]
+}
+
+
+
 
