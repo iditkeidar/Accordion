@@ -10,7 +10,7 @@ Section~\ref{ssec:offheap} discusses off-heap allocation of  the flat memory seg
 
 \begin{figure}[tbh]
 \center
-\includegraphics[width=\columnwidth]{Accordion} 
+\includegraphics[width=\columnwidth]{accordion-arch} 
 \caption{\sys's compacting memory store architecture adds a pipeline of flat segments between the active segment and the snapshot. 
 The memory store includes a small dynamic active segment 
 and a pipeline of flat segments. A disk flush creates a snapshot of the pipeline for writing to disk.}
@@ -19,55 +19,51 @@ and a pipeline of flat segments. A disk flush creates a snapshot of the pipeline
 
 \sys\ introduces a \emph{compacting} memory store to the LSM tree design framework. In contrast to the traditional memory store, 
 which maintains RAM-resident data in a single monolithic data structure, \sys\ manages data as a \emph{pipeline} of 
-\emph{segments} ordered by creation time. At all times, the most recent segment, called \emph{active}, is mutable;
-it absorbs  put operations. The rest of the segments are immutable. Get and scan operations retrieve data from all  segments, 
- similarly to a traditional LSM tree read from multiple files. 
- 
- Figure~\ref{fig:accordion} illustrates the \sys\ architecture. It is parameterized by two values:
+\emph{segments} ordered by creation time. \inred{Each segment is an index over a collection of data cells.}
+At all times, the most recent segment, called \emph{active}, is mutable;
+it absorbs put operations. The rest of the segments are immutable.  
+%
+Get and scan operations retrieve data from all  segments,  similarly to a traditional LSM tree read from multiple files. 
+  
+Figure~\ref{fig:accordion} illustrates the \sys\ architecture. It is parameterized by two values:
 \begin{itemize}
-\item  $A$ -- the fraction of the memory store allocated to the active segment; and 
-\item $S$ -- the upper bound on the number of immutable segments in the pipeline. 
+\item  $A$ --  fraction of the memory store allocated to the active segment; and 
+\item $S$ --  upper bound on the number of immutable segments in the pipeline. 
 \end{itemize}
 
 \noindent
 As our experiments show (Section~\ref{sec:eval}), the most effective parameter values are quite small, 
 e.g., $0.02 \leq A \leq 0.05$, and $1 \leq S \leq 5$.
 
-The memory store dynamics are as follows. 
 Once the active segment grows to its size bound (a fraction $A$ of the memory store's size bound), an \emph{in-memory flush} is invoked.
 The in-memory flush makes the active segment immutable and creates a new active segment to replace it. 
-The replaced active segment is then added to the pipeline in one of three ways. 
-\begin{description}
-\item[Flattening of intra-segment search indices.] 
-In case there is available space in the pipeline (the number of pipeline segments is smaller than $S$), 
-the segment is simply flattened. This involves replacing dynamic segment indices such as skiplists by 
-compact ordered arrays, which are suitable for immutable data. 
-\end{description}
-Flattening reduces the MemStore's memory footprint, which delays  disk flushes, positively affecting both read latency  (by increasing the MemStore's hit rate) and write volume.
-\inred{It also allows for off-heap allocation, as discussed in Section~\ref{ssec:offheap} below.}
 
-Once the number of immutable segments exceeds $S$, \emph{in-memory compaction} applies one of the following mechanisms: 
-\begin{description}
-\item[Merging pipeline segments' search indices.]
- \remove{ % Off-heap stuff omitted due to lack of evaluation
- % To Do: move to conclusions
+The replaced active segment is then \emph{flattened} and added to the pipeline.
+This involves replacing the dynamic segment index (e.g., skiplist) by a compact ordered array, 
+which is suitable for immutable data and supports fast lookup via binary search. 
+\inred{The indexed data cells are unaffected by the index's flattening.}
+Flattening reduces the MemStore's memory footprint, which delays  disk flushes, positively affecting both read latency  (by increasing the MemStore's hit rate) and write volume.
+\inred{
   An additional advantage of the flat layout  is that in managed environments, 
- the index can be relocated to off-heap (unmanaged) memory, which can improves performance predictability 
- through reduced garbage collection jitter~\cite{alibabahbase}. 
+ the index can be allocated in off-heap (unmanaged) memory, which can improve performance predictability 
+ through reduced garbage collection jitter~\cite{alibabahbase}; this approach is  discussed in Section~\ref{ssec:offheap} below.
+ }
+
+
+In case there is available space in the pipeline (the number of pipeline segments is smaller than $S$), 
+the flattened segment is simply added to the pipeline and the memory flush takes no further actions.  
+Once the number of immutable segments exceeds $S$, \emph{in-memory compaction} occurs. 
+At a minimum, compaction replaces the indices of multiple segments by a single index covering data that was 
+indexed by all original segments. This is a lightweight process that does not eliminate redundant data versions.
+
+Optionally, it can further perform \emph{redundant data elimination} by
+creating a flat index with no redundancies and disposing redundant data cells. 
+\inred{ 
+In case the memory store manages its cell data storage internally (off-heap), the surviving cells are relocated
+to a new contiguous buffer. Otherwise, the redundant cells are simply de-referenced, allowing the garbage-collector to reclaim them.    
 }
-This process replaces multiple segments by a single index covering data that resides 
-in all original segments. This is a lightweight process that does not eliminate redundant 
-data versions.
-%, and hence does not involve physical data copy. 
-\item[Merging pipeline segments' data.]
-This process extends the above with redundant data elimination -- it 
-creates a flat index with no redundancies, and disposes redundant data cells. 
-\remove{ % Slab stuff omitted due to lack of evaluation
-In case the memstore manages its cell data storage internally, the surviving cells are relocated
-to new slabs; otherwise, the redundant cells are simply de-referenced, and later garbage-collected.    
-}
-\end{description} 
-The choice of compaction mechanisms to employ is guided by the policies described in Section~\ref{ssec:policies} below.
+%
+The choice whether to eliminate redundant data or not is guided by the policies described in Section~\ref{ssec:policies} below.
 
 Flushes to disk work the same way as in a standard LSM tree: A disk flush first shifts all pipeline segments to the snapshot, which is not part of the pipeline, while the pipeline is emptied so that
 it may absorb new flat segments. 
@@ -78,19 +74,22 @@ In case the disk flush process empties the pipeline while an in-memory compactio
 
 \subsection{Compaction Policies} \label{ssec:policies}
 
-There is a tradeoff between the two in-memory compaction mechanisms. Merging only search indices without removing redundancies is a lighter-weight process.  Moreover, this approach is friendly to the managed memory system because the entire segment is freed at once, whereas 
-the data-merging alternative burdens the memory management system (in particular, the garbage collector) by
-constantly releasing small objects. On the other hand, the index-merging approach  continues to 
+Redundant data elimination induces a tradeoff. On the one hand,
+merging only search indices without removing redundancies is a lighter-weight process.  
+Moreover, this approach is friendly to the managed memory system because the entire segment is freed at once, whereas 
+removing (redundant) cells from existing segments burdens the memory management system (in particular, the garbage collector) by
+constantly releasing small objects. On the other hand, by forgoing redundant data elimination we continue to 
 consume memory for overwritten data; this is significant in production-like heavy-tailed distributions where some keys are frequently overwritten.
-By removing these redundancies, the data-merging approach further delays disk flushes, which both improves read latency  (thanks to more 
+Removing these redundancies further delays disk flushes, which both improves read latency  (thanks to more 
 queries being satisfied from memory) and reduces the write volume.
 
-Our HBase 2.0 implementation includes two policies corresponding to these two in-memory compaction approaches:
+Our HBase 2.0 implementation includes the two extreme memory compaction policies:
 \begin{description}
-\item[\basic] (low-overhead). Once a segment becomes immutable, flatten its index. Once the pipeline size exceeds $S$, 
-merge all segment indices into one.  
-\item[\eager] (high-overhead, high-reward under self-similar workloads). 
-Once a segment becomes immutable, merge its index and data with the current (single) pipeline segment.
+\item[\basic] (low-overhead) never performs redundant data elimination. Rather, 
+once a segment becomes immutable, flattens its index, and once the pipeline size exceeds $S$, merges all segment indices into one.   
+\item[\eager] (high-overhead, high-reward under self-similar workloads) immediately merges a segment that becomes immutable 
+with the current  (single) pipeline segment, while eliminating redundant data.
+%Once a segment becomes immutable, merge its index and data with the current (single) pipeline segment.
 % In addition to \basic\/ mechanisms, eliminate data redundancies across pipeline segments.
 \end{description}
 
@@ -99,7 +98,7 @@ and the benefits from reducing the memory footprint are offset by the increased 
 We therefore present in this paper a third policy:
 \begin{description}
 \item[\adp] (the best of all worlds)\footnote{\small{Not committed to production code yet.}}. A heuristic that chooses 
-whether to apply data compaction (as in \eager) or not (as in \basic) based on the level of redundancy in the data 
+whether to eliminate redundant data  (as in \eager) or not (as in \basic) based on the level of redundancy in the data 
 and the perceived cost-effectiveness of compaction. \adp\ works at the level of a single LSM store, i.e., triggers 
 redundancy elimination only for those stores where positive impact is expected. 
 \end{description}
@@ -184,7 +183,7 @@ a substantial space reduction, especially when data items are small. However, it
 cell objects to support HBase's internal scan APIs. But this consumes  a small amount of space on-demand, and this space is deallocated rapidly, 
 which is easier for the GC process to handle.
   
-[[Idit: 1. What about the keys? 2. Add pictures.]]
+[[Idit:  Add pictures.]]
 }
 
 

@@ -68,16 +68,19 @@ We introduce \sys, an algorithm for memory store management in LSM trees.
 
  
 % Benefits
+ \inred{
 This new design has three key benefits: First, the static segments have an optimized memory
- layout (flat index), which reduces their footprint. 
- \inred{This flat organization is readily amenable to off-heap allocation, which further reduces memory consumption
- by eliminating the need to store Java objects for all cells. 
+ layout (flat index), which reduces their footprint and improves hardware cache efficiency. 
+This flat organization is also readily amenable to off-heap allocation, which further reduces memory consumption
+ by eliminating the need to store Java objects for data items. 
  Second, \sys\ reduces the \emph{garbage collection (GC)} overhead, thus making performance more predictable.
  The latter is important for management software (e.g., Apache ZooKeeper) that 
-relies on timeouts for detecting faulty storage nodes and initiating fail-over.} 
+uses timeouts to detect faulty storage nodes and initiate fail-over.
  Finally, in-memory compactions delay disk flushes, which both reduces 
  the write volume and improves read latency as more reads can be satisfied from RAM.
-
+We note that unlike a disk-based LSM design where read latency suffers from the need to
+search multiple files on disk,  \sys's additional flat segments reside in RAM and hence can be searched quickly.
+}
 
 % Status
 \sys\ is implemented in HBase production code; it is generally available starting the HBase 2.0 release. 
