@@ -1,0 +1,136 @@
+\documentclass[letterpaper,twocolumn,10pt]{article}
+%\usepackage{times}
+\usepackage{usenix,epsfig,endnotes}
+
+%========================
+%  Packages
+%========================
+
+\usepackage{graphicx,url,color}
+\usepackage{amsmath}
+\usepackage{amssymb}
+%\usepackage{amsthm}  %<---- for a different "look" in theorems (theorem word in bold, etc.) %ACM conflict with proof definition?
+%\usepackage{subfigure}
+%\usepackage[tight,footnotesize]{subfigure}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+\usepackage{times}
+
+%\usepackage{todonotes}
+%\usepackage[normalem]{ulem} %strikethrough: \sout{Hello World}
+%\usepackage{lastpage} %for number of pages
+%\usepackage{xspace}
+%\usepackage{multirow}
+%\usepackage{balance}
+
+\usepackage[colorlinks=true,allcolors=blue,breaklinks]{hyperref}   % hyperlinks, including DOIs and URLs in bibliography
+\usepackage{subcaption}
+%\usepackage{caption}
+\usepackage{float}
+
+%========================
+%  Macros
+%========================
+
+\newcommand{\code}[1]{\textsf{\fontsize{9}{11}\selectfont #1}}
+
+\newcommand{\inred}[1]{{\color{red}{#1}}}
+\newcommand{\ingreen}[1]{{\color{green}{#1}}}
+\newcommand{\remove}[1]{}
+\newcommand{\Idit}[1]{[[\inred{Idit: #1}]]}
+\newcommand{\eshcar}[1]{[[\inred{eshcar: #1}]]}
+\newcommand{\tb}{\hspace{5mm}}
+
+\newcommand{\sys}{Accordion}
+\newcommand{\basic}{{\em Basic}}
+\newcommand{\eager}{{\em Eager}}
+\newcommand{\adp}{{\em Adaptive}}
+\newcommand{\none}{{\em NoCompaction}}
+\newcommand{\magic}{{\em Adaptive}}
+\newcommand{\figw}{0.925\columnwidth}
+
+
+\newcommand{\speedup}[1]{#1$\times$}
+\newcommand{\tuple}[1]{\ensuremath{\langle \mbox{#1} \rangle}}
+
+%========================
+\begin{document}
+
+\date{}
+
+\title{\Large \bf  Playing HBase Tunes on \sys}
+
+
+\author{
+%\remove{
+Edward Bortnikov\footnotemark[1]  \tb
+Anastasia Braginsky\footnotemark[1]  \tb
+Eshcar Hillel\footnotemark[1] \tb 
+Idit Keidar\footnotemark[1] \footnotemark[2] \\
+	\footnotemark[1] Yahoo Research\ \ \footnotemark[2] Technion  \\ [2mm]
+%\small Submission Type: Research	
+%}
+%Deployed-system paper
+} % end author
+
+\maketitle
+
+
+
+%=========================================================================
+%  Abstract
+%=========================================================================
+
+\subsection*{Abstract}
+
+Log-structured merge (LSM) trees have emerged as the technology of choice for building scalable 
+write-intensive key-value storage systems. An LSM tree replaces random I/O with sequential 
+I/O by accumulating large batches of writes in a \emph{memory store} prior to flushing them to log-structured 
+disk storage; the latter is continuously re-organized in the background through a \emph{compaction}
+process for efficiency of reads. Though inherent to the LSM design, frequent compactions are a major pain point 
+because they slow down data store operations, primarily writes, and also increase disk wear.
+
+We argue that this pain point may be mitigated via better  organization of the memory store.
+We present \sys\ -- an algorithm that addresses this problem by re-applying
+the battle-tested LSM tree design principles to memory management. 
+\sys\ is implemented in the production code of Apache HBase, where it became the default deployment option 
+after extensive evaluation. We demonstrate \sys's double-digit performance gains versus 
+the baseline HBase implementation and discuss some unexpected lessons learned in the process. 
+
+%========================
+
+\section{Introduction} \label{sec:intro}
+\input{intro} 
+
+\section{Background} \label{sec:background}
+\input{background} 
+
+\section{\sys} \label{sec:accordion}
+\input{accordion} 
+
+\section{Performance Study} \label{sec:eval}
+\inred{[[To do: 
+add small YCSB microbenchmarks before big benchmarks (note - setup section does not apply); 
+add off-heap experiments; 
+change ``none'' label to NoCompaction.
+]]}
+
+\input{eval}
+
+\section{Related Work} \label{sec:related}
+\input{related}†
+
+\section{Discussion} \label{sec:conclusions}
+\input{discussion}
+
+\subsection*{Acknowledgments}
+\inred{Need to thank some people in the HBase community.}
+%Omitted for blind review.
+
+\newpage
+
+\bibliographystyle{acm}
+
+\bibliography{refs}
+
+\end{document}

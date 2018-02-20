@@ -1,0 +1,110 @@
+
+% NoSQL stores are popular
+Persistent NoSQL key-value (KV-)stores such as Apache HBase~\cite{hbase} have become extremely popular over the last decade, 
+and the range of applications for which they are used continuously increases. A small sample of  recently 
+published use cases includes massive-scale online analytics (Airbnb/Airstream~\cite{airbnb}, 
+Yahoo/Flurry~\cite{flurry}), product search 
+and recommendation (Alibaba~\cite{alibabahbase}), 
+graph storage (Facebook/Dragon~\cite{dragon}, 
+Pinterest/Zen~\cite{zen}), and many more. 
+
+% LSM trees optimize disk I/O 
+The leading approach for implementing write-intensive key-value storage is \emph{log-structured merge (LSM)} trees~\cite{O'Neil:1996}.
+This technology is ubiquitously used by popular key-value storage libraries (e.g., LevelDB~\cite{leveldb}, 
+RocksDB~\cite{rocksdb}, ScyllaDB~\cite{scylladb}) and distributed storage systems on top 
+of them (e.g., Bigtable~\cite{Chang2008}, Cassandra~\cite{cassandra}, HBase, 
+MongoDB~\cite{mongodb}, MySql~\cite{mysql}). 
+The premise for using LSM trees is that disk access is considered the principal bottleneck in storage systems, even with today's SSD hardware~\cite{rocksdb,Tanenbaum:2014:MOS:2655363,Wu:2012:AWB:2093139.2093140}. 
+The main design goal is to improve write throughput, which LSM trees do by batching writes in memory 
+and periodically \emph{flushing} the memory  to disk. This way, expensive random-access I/O is transformed 
+into storage-friendly sequential I/O. 
+
+% memory store and disk store
+An LSM tree includes a \emph{memory store} in addition to the large \emph{disk store} consisting of a collection of files
+(see Figure~\ref{fig:LSM}). 
+The memory store absorbs writes, and is periodically flushed to disk as a new immutable file. Reads search the memory store
+as well as the disk store. The number of files in the disk store has adverse impact on read performance. 
+In order to reduce it, the system periodically runs a background \emph{compaction} process, which reads some files from 
+disk and merges them into a single sorted one while removing redundant (overwritten or deleted) entries.
+We provide further background on LSM trees and HBase in Section~\ref{sec:background}.
+
+% Compactions hurt 
+The performance of modern LSM stores is highly optimized, and yet as technology scales and real-time 
+performance expectations increase, these systems face more stringent  demands. In particular, 
+they are extremely sensitive to the rate and extent of compactions. If compactions are infrequent, read performance
+suffers (because more files need to be searched and caching is less efficient when  data is scattered across multiple files). On the other hand, if 
+compactions are too frequent, they jeopardize the performance of both writes and reads by consuming CPU and I/O resources. 
+\remove{
+In other words, LSM trees struggle to balance between {\em read amplification} (the number 
+of disk reads per query) and {\em write amplification} (the ratio of bytes written to disk versus bytes written to the 
+database)~\cite{rocksdbtuning}. 
+}
+In addition to their performance impact, frequent compactions increase the disk write volume, which  
+accelerates device wear-out, especially for SSD hardware~\cite{Hu:2009}. 
+
+% RAM is important too!
+Not surprisingly, significant efforts have been invested in compaction parameter tuning, scheduling, etc.~\cite{hbasetuning,
+universalcompaction,scylladbcompaction,Sears:2012}. However, these approaches only deal with the aftermath
+of organizing the disk store as a sequence of files created upon memory store overflow events, and do not 
+address memory management. And yet, the amount of data written by memory flushes  
+directly impacts the ensuing flush and compaction toll. 
+While today's LSM trees gravitate towards using large memory 
+stores that make flushes less frequent (e.g., the HBase default memory store size is 128MB), 
+they do not physically delete removed or overwritten data,
+and therefore do not reduce the amount of data written to disk.
+Moreover, state-of-the-art memory stores are organized as dynamic data structures consisting of small objects,
+which becomes inefficient when the store size increases, in particular in managed languages like Java. 
+
+% Drumroll 
+We introduce \sys, an algorithm for memory store management in LSM trees. 
+\sys\ re-applies the classic LSM tree design principles to the memory store. Namely, it partitions this store
+ into a small dynamic segment that absorbs writes, and a sequence of static segments created 
+ from previous dynamic segments by \emph{in-memory flushes}; the latter occur at a higher rate
+ than disk flushes.  The algorithm also 
+ performs \emph{in-memory compactions}, which eliminate redundant %(removed or overwritten) 
+ data before it is written to disk.
+  \sys's data organization is illustrated in Figure~\ref{fig:accordion};
+ Section~\ref{sec:accordion} fleshes out its details.
+
+ 
+% Benefits
+ \inred{
+This new design has three key benefits: First, the static segments have an optimized memory
+ layout (flat index), which reduces their footprint and improves locality of reference and hence boosts hardware cache efficiency. 
+This flat organization is also readily amenable to off-heap allocation, which further reduces memory consumption
+ by eliminating the need to store Java objects for data items. 
+ Second, \sys\ reduces the \emph{garbage collection (GC)} overhead, thus making performance more predictable.
+ The latter is important when
+ %for management software (e.g., Apache ZooKeeper) that 
+timeouts are used to detect faulty storage nodes and initiate fail-over.
+ Finally, in-memory compactions delay disk flushes, which both reduces 
+ the write volume and improves read latency as more reads can be satisfied from RAM.
+We note that unlike a disk-based LSM design where read latency suffers from the need to
+search multiple files on disk,  \sys's additional flat segments reside in RAM and hence can be searched quickly.
+}
+
+% Status
+\sys\ is implemented in HBase production code; it is generally available starting the HBase 2.0 release. 
+An extensive evaluation process led to \sys's adoption as HBase's default memory store implementation. 
+
+% Experiments
+In Section~\ref{sec:eval} we experiment with the \sys\ HBase implementation in a range of scenarios.
+We study production-size datasets and data layouts, with multiple storage types (SSD and HDD). 
+\inred{
+We focus on high throughput scenarios, where the compaction and GC toll are significant. 
+}
+We conclude that the algorithm's contribution to overall system performance is substantial, 
+especially under a  heavy-tailed (Zipf) key access distribution with 
+small objects, as occurs in many production use cases~\cite{Wu2015}. For example, \sys\/ 
+improves the system's write throughput by up to $48\%$, and reduces read tail latency 
+(in HDD settings)  
+by up to $40\%$. At the same time, it reduces the write volume (excluding the log) by up to $30\%$. Surprisingly, we see 
+that in many settings, disk I/O is \emph{not} the principal bottleneck. Rather, the memory management 
+overhead is more substantial: the improvements are highly correlated with  reduction in GC time. 
+
+In summary, \sys\ grows and shrinks a sequence of flat memory segments resembling accordion bellows, 
+thus reducing memory overhead, fragmentation, garbage collection costs, and the disk write volume. 
+Our experiments show that it significantly improves end-to-end system performance and reduces disk wear, 
+which led to the recent adoption of this solution in HBase. Section~\ref{sec:related} discusses related work 
+and Section~\ref{sec:conclusions} concludes the paper.
+
