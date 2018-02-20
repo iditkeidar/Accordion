@@ -2,9 +2,8 @@
 We describe  \sys's architecture and basic operation in Section~\ref{ssec:overview}.
 We then discuss in-memory compaction policies  in  Section~\ref{ssec:policies}
 and implementation details and thread synchronization in Section~\ref{ssec:impl-details}.
-\inred{ 
 Section~\ref{ssec:offheap} discusses off-heap allocation of  the flat memory segments.
-}
+
 
 \subsection{Overview} \label{ssec:overview}
 
@@ -19,7 +18,7 @@ and a pipeline of flat segments. A disk flush creates a snapshot of the pipeline
 
 \sys\ introduces a \emph{compacting} memory store to the LSM tree design framework. In contrast to the traditional memory store, 
 which maintains RAM-resident data in a single monolithic data structure, \sys\ manages data as a \emph{pipeline} of 
-\emph{segments} ordered by creation time. \inred{Each segment is an index over a collection of data cells.}
+\emph{segments} ordered by creation time. Each segment is an index over a collection of data cells.
 At all times, the most recent segment, called \emph{active}, is mutable;
 it absorbs put operations. The rest of the segments are immutable.  
 %
@@ -41,13 +40,11 @@ The in-memory flush makes the active segment immutable and creates a new active 
 The replaced active segment is then \emph{flattened} and added to the pipeline.
 This involves replacing the dynamic segment index (e.g., skiplist) by a compact ordered array, 
 which is suitable for immutable data and supports fast lookup via binary search. 
-\inred{The indexed data cells are unaffected by the index's flattening.}
+The indexed data cells are unaffected by the index's flattening.
 Flattening reduces the MemStore's memory footprint, which delays  disk flushes, positively affecting both read latency  (by increasing the MemStore's hit rate) and write volume.
-\inred{
   An additional advantage of the flat layout  is that in managed environments, 
  the index can be allocated in off-heap (unmanaged) memory, which can improve performance predictability 
  through reduced garbage collection jitter~\cite{alibabahbase}; this approach is  discussed in Section~\ref{ssec:offheap} below.
- }
 
 
 In case there is available space in the pipeline (the number of pipeline segments is smaller than $S$), 
@@ -58,10 +55,8 @@ indexed by all original segments. This is a lightweight process that does not el
 
 Optionally, it can further perform \emph{redundant data elimination} by
 creating a flat index with no redundancies and disposing redundant data cells. 
-\inred{ 
 In case the memory store manages its cell data storage internally (off-heap), the surviving cells are relocated
 to a new contiguous buffer. Otherwise, the redundant cells are simply de-referenced, allowing the garbage-collector to reclaim them.    
-}
 %
 The choice whether to eliminate redundant data or not is guided by the policies described in Section~\ref{ssec:policies} below.
 
@@ -97,7 +92,7 @@ Our experiments (reported in the next section) show that the \eager\ policy is t
 and the benefits from reducing the memory footprint are offset by the increased management (and in particular, garbage collection) overhead.
 We therefore present in this paper a third policy:
 \begin{description}
-\item[\adp] (the best of all worlds)\footnote{\small{Not committed to production code yet.}}. A heuristic that chooses 
+\item[\adp] (the best of all worlds) a heuristic that chooses 
 whether to eliminate redundant data  (as in \eager) or not (as in \basic) based on the level of redundancy in the data 
 and the perceived cost-effectiveness of compaction. \adp\ works at the level of a single LSM store, i.e., triggers 
 redundancy elimination only for those stores where positive impact is expected. 
@@ -166,14 +161,13 @@ that flips the pipeline version only if the latter did not change since the comp
 compaction fails if a disk flush concurrently removes some segments from the pipeline.
 % (Section~\ref{ssec:overview}). 
 
-\inred{
+
 \subsection{Off-Heap  Allocation} \label{ssec:offheap}
-Prior to \sys, HBase allocated its MemStore on-heap, using a standard Java skiplist for the active buffer and an
-array for the snapshot. \sys\ continues to use the same data structures -- skiplist for the active segment and arrays for the flat ones. 
+Prior to \sys, HBase allocated its MemStore on-heap, using a standard Java skiplist for the active buffer and the snapshot. \sys\ continues to use the same data structure -- skiplist for the active segment, but adopts arrays for the flat segments and snapshot. 
 Each skiplist node or array entry holds a reference to a \emph{cell} object, which holds a reference to a buffer holding a key-value pair,
 as illustrated in Figure~\ref{fig:on-heap}. 
 The cell object is used for internal HBase scan APIs, and can reference data in two different formats: either a standard Java object
-called \emph{pojo} -- Pure Old Java Object -- or an address in a bulk-allocated array called \emph{mslab} -- Memory Slab. 
+called \emph{pojo} -- Pure Old Java Object -- or an address in a bulk-allocated array called \emph{mslab} -- MemStore local allocation buffer. 
 HBase mslabs may be allocated off-heap. 
 
 \begin{figure}[tbh]
@@ -189,15 +183,12 @@ HBase mslabs may be allocated off-heap.
 \label{fig:off-heap}
 \end{figure}
 
-
-\sys's off-heap version takes this approach one step further, and allocates the flat segments off-heap as well. It therefore forgoes the intermediate cell
+\sys's off-heap version takes this approach one step further, and allocates the flat segments on off-heap as well. Those segments are allocated on mslab, which is in turn allocated from off-heap. It therefore forgoes the intermediate cell
 objects, and has the  array entries in the off-heap flat segments point directly to the the off-heap mslabs as illustrated in Figure~\ref{fig:off-heap}.  
 Removing the cell objects yields
 a substantial space reduction, especially when data items are small. However, it necessitates recreating temporary
 cell objects to support HBase's internal scan APIs. Nevertheless, such temporary objects consume  a small amount of space on-demand, 
 and these objects are  deallocated rapidly, making them easier for the GC process to handle.
-
-}
 
 
 
