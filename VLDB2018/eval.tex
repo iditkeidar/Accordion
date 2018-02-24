@@ -238,6 +238,18 @@ GC time and the write throughput.
 Note that this does not necessarily mean that GC time is the only reason for performance reduction. Rather,
 GC cycles may be correlated with other costs, e.g., memory fragmentation, which reduces locality.
 
+\anastas{
+\paragraph{Basic Serialized Index}
+We experiment also with an immutable flat segment which index is allocated on the mslab, which can be on-heap or off-heap (as explained in Section~\ref{ssec:offheap}). Those serialized segments are proposed for the case when data is allocated on mslab. Figure~\ref{fig:write_only_off_heap} presents the speedup...
+
+\begin{figure}[htb]
+\includegraphics[width=\figw]{Figs/write-only-off-heap.pdf}
+\caption{Speedup when using serialized segment in off-heap and on-heap.
+}
+\label{fig:write_only_off_heap}
+\end{figure}
+
+}
 
 \subsubsection{Read-Write Workloads}
 
