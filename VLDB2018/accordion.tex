@@ -2,7 +2,7 @@
 We describe  \sys's architecture and basic operation in Section~\ref{ssec:overview}.
 We then discuss in-memory compaction policies  in  Section~\ref{ssec:policies}
 and implementation details and thread synchronization in Section~\ref{ssec:impl-details}.
-Section~\ref{ssec:offheap} discusses off-heap allocation of  the flat memory segments.
+Section~\ref{ssec:offheap} discusses off-heap allocation of  the serialized memory segments.
 
 
 \subsection{Overview} \label{ssec:overview}
@@ -167,7 +167,7 @@ Prior to \sys, HBase allocated its MemStore on-heap, using a standard Java skipl
 Each skiplist node or array entry holds a reference to a \emph{cell} object, which holds a reference to a buffer holding a key-value pair,
 as illustrated in Figure~\ref{fig:on-heap}. 
 The cell object is used for internal HBase scan APIs, and can reference data in two different formats: either a standard Java object
-called \emph{pojo} -- Pure Old Java Object -- or an address in a bulk-allocated array called \emph{mslab} -- MemStore local allocation buffer. 
+called \emph{pojo} -- Pure Old Java Object -- or an address in a bulk-allocated array called \emph{mslab} -- MemStore local allocation buffer~\cite{hbasemslab}. 
 HBase mslabs may be allocated off-heap. 
 
 \begin{figure}[tbh]
@@ -183,13 +183,13 @@ HBase mslabs may be allocated off-heap.
 \label{fig:off-heap}
 \end{figure}
 
-\sys's off-heap version takes this approach one step further, and allocates the flat segments on off-heap as well. Those segments are allocated on mslab, which is in turn allocated from off-heap. It therefore forgoes the intermediate cell
-objects, and has the  array entries in the off-heap flat segments point directly to the the off-heap mslabs as illustrated in Figure~\ref{fig:off-heap}.  
+\sys's off-heap version takes this approach one step further, and allocates the index of the flat segments on mslab as well (on-heap or off-heap). Such a segment (denoted \emph{serialized segment}) forgoes the intermediate cell
+objects, and has the array entries (in the off-heap mslab) point directly to the the mslabs holding keys and values (off-heap or on-heap), as illustrated in Figure~\ref{fig:off-heap}.  
 Removing the cell objects yields
-a substantial space reduction, especially when data items are small. However, it necessitates recreating temporary
+a substantial space reduction, especially when data items are small, and elimination the intermediate level of indirection. Offloading the data from the Java heap
+has been shown to be effective for read traffic~\cite{alibabahbase}. However, it necessitates recreating temporary
 cell objects to support HBase's internal scan APIs. Nevertheless, such temporary objects consume  a small amount of space on-demand, 
 and these objects are  deallocated rapidly, making them easier for the GC process to handle.
-
 
 
 
