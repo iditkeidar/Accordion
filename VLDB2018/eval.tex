@@ -240,11 +240,11 @@ GC cycles may be correlated with other costs, e.g., memory fragmentation, which 
 
 \anastas{
 \paragraph{Basic Serialized Index}
-We experiment also with an immutable flat segment which index is allocated on the mslab, which can be on-heap or off-heap (as explained in Section~\ref{ssec:offheap}). Those serialized segments are proposed for the case when data is allocated on mslab. Figure~\ref{fig:write_only_off_heap} presents the speedup...
+We also experiment with the serialized segments where index is allocated on the mslab (Section~\ref{ssec:offheap}). We study the write-only workload as explained above with zipf key distribution and SSD hardware. The serialized segments are proposed for the case when both index and data are allocated on mslab. Figure~\ref{fig:write_only_off_heap} presents the throughput speedup over \none\/ for \basic\/ policy based on flat or serialized segments. In all benchmarks the data is allocated on on-heap or off-heap mslabs, while only for serialized \basic\/ also the index is allocated in the same mslab. For the flat \basic, the speedup is $27\%$ on-heap and $29\%$ off-heap. For the serialized \basic, the speedup is $33\%$ on-heap and $44\%$ off-heap. The gain from the serialized \basic\/ is larger for the off-heap case, due to memory accesses from index to data are faster when both are taken off-heap. 
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/write-only-off-heap.pdf}
-\caption{Speedup when using serialized segment in off-heap and on-heap.
+\caption{Throughput Speedup when using flat and serialized segments allocated on mslab (off-heap and on-heap).
 }
 \label{fig:write_only_off_heap}
 \end{figure}

@@ -183,8 +183,8 @@ HBase mslabs may be allocated off-heap.
 \label{fig:off-heap}
 \end{figure}
 
-\sys's off-heap version takes this approach one step further, and allocates the index of the flat segments on mslab as well (on-heap or off-heap). Such a segment (denoted \emph{serialized segment}) forgoes the intermediate cell
-objects, and has the array entries (in the off-heap mslab) point directly to the the mslabs holding keys and values (off-heap or on-heap), as illustrated in Figure~\ref{fig:off-heap}.  
+\sys's off-heap version takes this approach one step further, and allocates the index of the flat segments on mslab as well (on-heap or off-heap). Such a segment (denoted \emph{serialized segment}) has its index and data allocated on the same mslab, meaning they are either both off-heap or both on-heap. Serialized segment forgoes the intermediate cell
+objects, and has the array entries point directly to the the mslabs holding keys and values, as illustrated in Figure~\ref{fig:off-heap}.  
 Removing the cell objects yields
 a substantial space reduction, especially when data items are small, and elimination the intermediate level of indirection. Offloading the data from the Java heap
 has been shown to be effective for read traffic~\cite{alibabahbase}. However, it necessitates recreating temporary
