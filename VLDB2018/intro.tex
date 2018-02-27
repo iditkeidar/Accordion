@@ -1,26 +1,26 @@
 
 % NoSQL stores are popular
-Persistent NoSQL key-value (KV-)stores such as Apache HBase~\cite{hbase} have become extremely popular over the last decade, 
+Persistent NoSQL key-value (KV-)stores have become extremely popular over the last decade, 
 and the range of applications for which they are used continuously increases. A small sample of  recently 
-published use cases includes massive-scale online analytics (Airbnb/Airstream~\cite{airbnb}, 
+published use cases includes massive-scale online analytics (Airbnb/ Airstream~\cite{airbnb}, 
 Yahoo/Flurry~\cite{flurry}), product search 
 and recommendation (Alibaba~\cite{alibabahbase}), 
 graph storage (Facebook/Dragon~\cite{dragon}, 
 Pinterest/Zen~\cite{zen}), and many more. 
 
-% LSM trees optimize disk I/O 
-The leading approach for implementing write-intensive key-value storage is \emph{log-structured merge (LSM)} trees~\cite{O'Neil:1996}.
-This technology is ubiquitously used by popular key-value storage platforms~\cite{leveldb, rocksdb, scylladb, Chang2008, cassandra, HBase, mongodb, mysql}. 
+% LSM stores optimize disk I/O 
+The leading approach for implementing write-intensive key-value storage is \emph{log-structured merge (LSM)} stores~\cite{O'Neil:1996}.
+This technology is ubiquitously used by popular key-value storage platforms~\cite{leveldb, rocksdb, scylladb, Chang2008, cassandra, hbase, mongodb, mysql}. 
 %(e.g., LevelDB~\cite{leveldb},  RocksDB~\cite{rocksdb}, ScyllaDB~\cite{scylladb}, Bigtable~\cite{Chang2008}, Cassandra~\cite{cassandra}, HBase, MongoDB~\cite{mongodb}, MySql~\cite{mysql}). 
-The premise for using LSM trees is the major disk access bottleneck, exhibited even with today's SSD hardware~\cite{rocksdb,Tanenbaum:2014:MOS:2655363,Wu:2012:AWB:2093139.2093140}. 
-An LSM tree includes a \emph{memory store} in addition to the large \emph{disk store} comprising a collection of files
+The premise for using LSM stores is the major disk access bottleneck, exhibited even with today's SSD hardware~\cite{rocksdb,Tanenbaum:2014:MOS:2655363,Wu:2012:AWB:2093139.2093140}. 
+An LSM store includes a \emph{memory store} in addition to the large \emph{disk store} comprising a collection of files
 (see Figure~\ref{fig:LSM}). 
 The memory store absorbs writes, and is periodically \emph{flushed} to disk as a new immutable file. 
 This approach improves write throughput by transforming expensive random-access I/O into storage-friendly sequential I/O. 
 Reads search the memory store as well as the disk store. The number of files in the disk store has adverse impact on read performance. 
 In order to reduce it, the system periodically runs a background \emph{compaction} process, which reads some files from 
 disk and merges them into a single sorted one while removing redundant (overwritten or deleted) entries.
-We provide further background on LSM trees in Section~\ref{sec:background}.
+We provide further background on LSM stores in Section~\ref{sec:background}.
 
 % Compactions hurt 
 The performance of modern LSM stores is highly optimized, and yet as technology scales and real-time 
@@ -29,14 +29,15 @@ they are extremely sensitive to the rate and extent of compactions. If compactio
 suffers (because more files need to be searched and caching is less efficient when  data is scattered across multiple files). On the other hand, if 
 compactions are too frequent, they jeopardize the performance of both writes and reads by consuming CPU and I/O resources, and by indirectly invalidating cached blocks. 
 \remove{
-In other words, LSM trees struggle to balance between {\em read amplification} (the number 
+In other words, LSM stores struggle to balance between {\em read amplification} (the number 
 of disk reads per query) and {\em write amplification} (the ratio of bytes written to disk versus bytes written to the 
 database)~\cite{rocksdbtuning}. 
 }
 In addition to their performance impact, frequent compactions increase the disk write volume, which  
 accelerates device wear-out, especially for SSD hardware~\cite{Hu:2009}. 
 
-Moreover, as today's LSM stores gravitate towards using larger memory stores, unpredictable \emph{garbage collection (GC)} pauses in managed-language stores~\cite{cassandra, HBase} has become a significant problem.
+Moreover, as the amount of memory available in commodity server is rising LSM stores gravitate towards using larger memory stores.
+This has led to unpredictable \emph{garbage collection (GC)} pauses in managed-language stores~\cite{cassandra, hbase} to become a significant problem.
 This is crucial, for example, when timeouts are used to detect faulty storage nodes and initiate fail-over.
 In particular, state-of-the-art memory stores are organized as dynamic data structures consisting of many small objects,
 which become inefficient when the memory store size increases; they are neither cache-friendly nor GC-friendly.
@@ -48,16 +49,18 @@ of organizing the disk store as a sequence of files created upon memory store ov
 address memory management. 
 And yet, the amount of data written by memory flushes  
 directly impacts the ensuing flush and compaction toll. 
-While memory stores have expanded in size, which make flushes less frequent 
+Memory stores have expanded in size, which make flushes less frequent 
 they do not physically delete removed or overwritten data, and do not change the layout of data that is doomed to be immutable while in-memory.
 Therefore they do not reduce the amount of data written to disk.
 
 We are not aware of any work that tried to directly tackle the memory management problem in LSM stores. 
-Two widely used technique to work around lengthy JVM GC pauses when working with large heap sizes are (1) using object pools, and (2) moving the store data into off-heap blobs. 
+Two widely used technique to work around lengthy JVM GC pauses when working with large heap sizes are 
+(1) using pre-allocated object pools and local allocation buffers~\cite{hbasemslab}, and 
+(2) moving the data into off-heap blobs~\cite{cassandraoffheap}. 
 
 % Drumroll 
 We introduce \sys, an algorithm for memory store management in LSM stores. 
-\sys\ re-applies the classic LSM tree design principles to the memory store. The main insight is that the memory store can be partitioned
+\sys\ re-applies the classic LSM store design principles to the memory store. The main insight is that the memory store can be partitioned
  into a small dynamic segment that absorbs writes, and a sequence of static segments created 
  from previous dynamic segments. Static segments are created by \emph{in-memory flushes} occurring at a higher rate
  than disk flushes.  The algorithm takes advantage of the fact that static segments are immutable and hence can optimize their index layout having it flat and even serialized.
@@ -94,7 +97,7 @@ by up to $40\%$. At the same time, it reduces the write volume (excluding the lo
 that in many settings, disk I/O is \emph{not} the principal bottleneck. Rather, the memory management 
 overhead is more substantial: the improvements are highly correlated with  reduction in GC time. 
 
-To summarize, \sys\ takes a pre-emptive approach for handling disk compaction even before data hits the disk, and addresses GC toll by directly improving the store memory management.
+To summarize, \sys\ takes a pre-emptive approach for handling disk compaction even before data hits the disk, and addresses GC toll by directly improving the memory store structure and management.
 It grows and shrinks a sequence of flat memory segments resembling accordion bellows, 
 thus reducing memory overhead, fragmentation, garbage collection costs, and the disk write volume. 
 Our experiments show that it significantly improves end-to-end system performance and reduces disk wear, 
