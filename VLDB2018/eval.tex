@@ -239,8 +239,8 @@ Note that this does not necessarily mean that GC time is the only reason for per
 GC cycles may be correlated with other costs, e.g., memory fragmentation, which reduces locality.
 
 \anastas{
-\paragraph{Basic Serialized Index}
-We also experiment with the serialized segments where index is allocated on the mslab (Section~\ref{ssec:offheap}). We study the write-only workload as explained above with zipf key distribution and SSD hardware. The serialized segments are proposed for the case when both index and data are allocated on mslab. Figure~\ref{fig:write_only_off_heap} presents the throughput speedup over \none\/ for \basic\/ policy based on flat or serialized segments. In all benchmarks the data is allocated on on-heap or off-heap mslabs, while only for serialized \basic\/ also the index is allocated in the same mslab. For the flat \basic, the speedup is $27\%$ on-heap and $29\%$ off-heap. For the serialized \basic, the speedup is $33\%$ on-heap and $44\%$ off-heap. The gain from the serialized \basic\/ is larger for the off-heap case, because when index is taken off-heap even less work is left to JVM GC. 
+\paragraph{Basic Serialized}
+We also experiment with the serialized segments where index is allocated on the mslab (Section~\ref{ssec:offheap}). We study the write-only workload explained above with zipf key distribution and SSD hardware. The serialized segments are proposed for the case when both index and data are allocated on mslab. Figure~\ref{fig:write_only_off_heap} presents the throughput speedup over \none\/ for \basic\/ policy based on flat or serialized segments. In all benchmarks the data is allocated on on-heap or off-heap mslabs, while only for serialized \basic\/ also the index is allocated in the same mslab. For the flat \basic, the speedup is $27\%$ on-heap and $29\%$ off-heap. For the serialized \basic, the speedup is $33\%$ on-heap and $44\%$ off-heap. The gain from the serialized \basic\/ is larger for the off-heap case, because when index is taken off-heap even less work is left to JVM GC. 
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/write-only-off-heap.pdf}
@@ -428,6 +428,11 @@ Figure~\ref{fig:latency-speedup-hdd} depicts the latency speed-up \basic\ and \m
 }
 \label{fig:latency-speedup-hdd}
 \end{figure}
+}
+
+\anastas{
+\paragraph{Scans}
+Finally, we study the scans behavior on SSD hardware with zipf keys distribution. We chose to practice the standard YCSB scans workload ($workload$ $e$), where short ranges of records are queried with small amount of puts in the background. Among 12 threads, 11 are proceeding with scanning 100 records and one thread writes. The workload is measured after 500M writes are loaded. 
 }
 
 \subsubsection{Parameter Tuning} \label{ssec:tuning}
