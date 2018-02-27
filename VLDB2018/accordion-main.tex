@@ -88,16 +88,17 @@ Gali Sheffi\footnotemark[1] \\
 
 \subsection*{Abstract}
 
-Log-structured merge (LSM) trees have emerged as the technology of choice for building scalable 
-write-intensive key-value storage systems. An LSM tree replaces random I/O with sequential 
+Log-structured merge (LSM) stores have emerged as the technology of choice for building scalable 
+write-intensive key-value storage systems. An LSM store replaces random I/O with sequential 
 I/O by accumulating large batches of writes in a \emph{memory store} prior to flushing them to log-structured 
 disk storage; the latter is continuously re-organized in the background through a \emph{compaction}
 process for efficiency of reads. Though inherent to the LSM design, frequent compactions are a major pain point 
-because they slow down data store operations, primarily writes, and also increase disk wear.
+because they slow down data store operations, primarily writes, and also increase disk wear. 
+Another inherent problem is the fragmentation caused due to the dynamic nature of the memory store, in particular in managed languages like Java. 
 
-We argue that this pain point may be mitigated via better  organization of the memory store.
-We present \sys\ -- an algorithm that addresses this problem by re-applying
-the battle-tested LSM tree design principles to memory management. 
+We argue that these pain points may be mitigated via better  organization of the memory store.
+We present \sys\ -- an algorithm that addresses these problems by re-applying
+the LSM design principles to memory management. 
 \sys\ is implemented in the production code of Apache HBase, where it became the default deployment option 
 after extensive evaluation. We demonstrate \sys's double-digit performance gains versus 
 the baseline HBase implementation and discuss some unexpected lessons learned in the process. 
