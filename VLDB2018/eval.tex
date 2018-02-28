@@ -221,27 +221,6 @@ The graph shows a clear negative correlation between the two metrics.
 \label{fig:gc-throughput-log2}
 \end{figure}
 
-\begin{figure*}[t]
-  \centering
-  
-  \begin{subfigure}[t]{.9\columnwidth}
-      \includegraphics[width=\figw]{Figs/latency-ssd.png}
-      \caption[]{SSD}
-    \label{fig:latency:ssd}
-  \end{subfigure}
-  \begin{subfigure}[t]{1.1\columnwidth}
-      \includegraphics[width=\figw]{Figs/latency-hdd.png}
-      \caption[]{HDD}
-    \label{fig:latency:hdd}
-  \end{subfigure}
-
-  \caption{Read latency speedup (respectively, slowdown) of \basic\/ and \adp\/ versus \none, under high write contention.
-  Latencies are broken down by percentile. In HDD systems, \adp\/ delivers up to $40$\% tail latency reduction. 
-  }
-  
-  \label{fig:latency}
-\end{figure*}
-
 \anastas{
 \mypara{Basic Serialized}
 We also experiment with the serialized segments where index is allocated on the mslab (Section~\ref{ssec:offheap}). We study the same write-only workload as explained above with zipf key distribution and SSD hardware. The serialized segments are proposed for the case when both index and data are allocated on mslab. Figure~\ref{fig:write_only_off_heap} presents the throughput speedup over \none\/ for \basic\/ policy based on flat or serialized segments. In all benchmarks the data is allocated on on-heap or off-heap mslabs, while only for serialized \basic\/ also the index is allocated in the same mslab. For the flat \basic, the speedup is $27\%$ on-heap and $29\%$ off-heap. For the serialized \basic, the speedup is $33\%$ on-heap and $44\%$ off-heap. The gain from the serialized \basic\/ is larger for the off-heap case, because when index is taken off-heap even less work is left to JVM GC. 
@@ -262,6 +241,27 @@ The keys of all operations are distributed identically (Zipf). We measure the $5
 $75$th, $90$th, $95$th and $99$th get latency percentiles. Figure~\ref{fig:latency} 
 depicts the relative latency slowdown of \basic\/ and \adp\/ ($R=0.2$) versus \none.
 %(values greater than 1 mean slowdown). 
+
+\begin{figure*}[t]
+  \centering
+  
+  \begin{subfigure}[t]{.9\columnwidth}
+      \includegraphics[width=\figw]{Figs/latency-ssd.png}
+      \caption[]{SSD}
+    \label{fig:latency:ssd}
+  \end{subfigure}
+  \begin{subfigure}[t]{1.1\columnwidth}
+      \includegraphics[width=\figw]{Figs/latency-hdd.png}
+      \caption[]{HDD}
+    \label{fig:latency:hdd}
+  \end{subfigure}
+
+  \caption{Read latency speedup (respectively, slowdown) of \basic\/ and \adp\/ versus \none, under high write contention.
+  Latencies are broken down by percentile. In HDD systems, \adp\/ delivers up to $40$\% tail latency reduction. 
+  }
+  
+  \label{fig:latency}
+\end{figure*}
 
 The HDD systems enjoy a dramatic reduction in tail latencies ($15$\% to $40$\% for \adp). 
 We explain this as follows. The tail latencies are cache misses that are served from disk. 
