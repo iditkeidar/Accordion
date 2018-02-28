@@ -94,7 +94,7 @@ I/O by accumulating large batches of writes in a \emph{memory store} prior to fl
 disk storage; the latter is continuously re-organized in the background through a \emph{compaction}
 process for efficiency of reads. Though inherent to the LSM design, frequent compactions are a major pain point 
 because they slow down data store operations, primarily writes, and also increase disk wear. 
-Another inherent problem is the fragmentation caused due to the dynamic nature of the memory store, in particular in managed languages like Java. 
+Another inherent problem is the fragmented memory layout caused due to the dynamic nature of the memory store, in particular in managed languages like Java. 
 
 We argue that these pain points may be mitigated via better  organization of the memory store.
 We present \sys\ -- an algorithm that addresses these problems by re-applying

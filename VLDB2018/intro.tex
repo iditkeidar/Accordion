@@ -56,7 +56,7 @@ Therefore, they do not reduce the amount of data written to disk.
 We are not aware of any work that tried to directly tackle the memory management problem in LSM stores. 
 Two widely used technique to work around lengthy JVM GC pauses when working with large heap sizes are 
 (1) using pre-allocated object pools and local allocation buffers~\cite{hbasemslab}, and 
-(2) moving the data into off-heap blobs~\cite{cassandraoffheap}. 
+(2) moving the data into off-heap memory~\cite{cassandraoffheap}. 
 
 % Drumroll 
 We introduce \sys, an algorithm for memory store management in LSM stores. 
@@ -98,9 +98,9 @@ by up to $40\%$. At the same time, it reduces the write volume (excluding the lo
 that in many settings, disk I/O is \emph{not} the principal bottleneck. Rather, the memory management 
 overhead is more substantial: the improvements are highly correlated with  reduction in GC time. 
 
-To summarize, \sys\ takes a pre-emptive approach for handling disk compaction even before data hits the disk, and addresses GC toll by directly improving the memory store structure and management.
-It grows and shrinks a sequence of flat memory segments resembling accordion bellows, 
-thus reducing memory overhead, fragmentation, garbage collection costs, and the disk write volume. 
+To summarize, \sys\ takes a proactive approach for handling disk compaction even before data hits the disk, and addresses GC toll by directly improving the memory store structure and management.
+It grows and shrinks a sequence of static memory segments resembling accordion bellows, 
+thus increasing memory utilization and reducing fragmentation, garbage collection costs, and the disk write volume. 
 Our experiments show that it significantly improves end-to-end system performance and reduces disk wear, 
 which led to the recent adoption of this solution as HBase's default memory store implementation; it is generally available starting the HBase 2.0 release.
  Section~\ref{sec:related} discusses related work 
