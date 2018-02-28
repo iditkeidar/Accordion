@@ -3,9 +3,10 @@ Our evaluation explores \sys's different policies and configuration parameters.
 We experiment with two types of production machines with directly attached SSD 
 and HDD storage. 
 
+\inpurple{Given that \sys\ changes the write-path algorithm, we focus our study mainly on write-intensive workloads.  To make the analysis complete we also experiment with read-dominated workload to show that reads (gets and scans) benefit from or are indifference to the change in write-path. }
 We study HBase's throughput and latency under a variety of workloads. 
-To reason about the results, we explore additional signals -- I/O statistics, 
-GC metrics, etc.  
+To reason about the results, we explore additional signals such as I/O statistics and 
+GC metrics.  
 
 We present the experiment setup in Section~\ref{ssec:setup}, and the evaluation 
 results in Section~\ref{ssec:results}. 
@@ -34,9 +35,10 @@ The table has a single column family with four columns.
 %Our benchmarks build and query a dataset of 50-100 GB in each experiment. 
 
 The workload is driven by the two remaining machines, each running up to 12 client threads. 
-We use the popular YCSB benchmarking tool~\cite{Cooper:2010:BCS:1807128.1807152} to generate 
-put and get requests. All puts write a full row (4 cells of 25 bytes each), and all gets retrieve
-a single cell. Such small values are typical in production workloads~\cite{Wu2015}. 
+\inpurple{We use the popular YCSB benchmarking tool~\cite{Cooper:2010:BCS:1807128.1807152} to generate 
+put get and scan requests. All puts write a full row (4 cells of 25 bytes each). Such small values are typical in production workloads~\cite{Wu2015}.
+All gets retrieve a single cell, while scans retrieve all four cells of the row. The length of each scan (number of retrieved cells) is chosen uniformly at random, where the maximum number of cells retrieved by a scan is 100.
+}
 
 In order to produce a high load, updates are batched on the client side in 10KB buffers. 
 In each experiment, all operations draw keys from the same distribution over a key range
@@ -45,7 +47,8 @@ is less representative of real workloads and is studied for reference only). The
 is generated following the description in~\cite{Gray:1994:QGB:191839.191886}, with $\theta=0.99\%$ 
 (YCSB standard).
 
-Each experiment consists of 500M writes and possibly concurrent reads. 
+\inpurple{Write-only experiments consist of 500M writes. Mixed workload experiments consist of a load phase (write-only) and a run phase with concurrent reads and writes. 
+Only the performance of the run phase is measured and reported.  }
 Depending on the setting (workload, algorithm, and hardware type), 
 the duration of 
 a single experiment  varies from approximately 1.5 hours to over 12 hours.  
@@ -53,7 +56,7 @@ a single experiment  varies from approximately 1.5 hours to over 12 hours.
 \subsection{Evaluation Results}
 \label{ssec:results}
 
-We compare the different \sys\/ policies (\basic, \eager, and \adp\/) to the legacy MemStore implementation, to which we refer as 
+We compare the different \sys\/ policies (\basic, \adp, and \eager) to the legacy MemStore implementation, to which we refer as 
 \none. Here, \adp\/ is studied under multiple 
 redundancy thresholds: $R=0.2$, $R=0.35$ and $R=0.5$ (the smaller the ratio, the more aggressively
 the policy triggers in-memory compaction).  
@@ -61,6 +64,38 @@ the policy triggers in-memory compaction).
 \sys's parameters  $A$ (active segment fraction bound) and $S$ (pipeline number of segments bound)  
 are tuned to values that optimize performance for the \basic\ version of \sys. We use $A=0.02$ and $S=5$.
 Section~\ref{ssec:tuning} presents our parameter exploration. 
+
+
+\subsubsection{Write-Only Workloads}
+
+Our first benchmark set exercises only put operations. It starts from an empty table and performs 500M puts, 
+in parallel from 12 client threads. We study the Zipf and  uniform key distributions. The experiments measure
+write throughput (latency is not meaningful because puts are batched), as well as disk I/O and GC metrics. 
+Every data point is the median among five runs. 
+
+\mypara{Write throughput} 
+Figure~\ref{fig:write-throughput} depicts the performance speedup of  \basic\ and \adp\ over
+\none. Table~\ref{tab:write-throughput} provides the absolute throughput numbers. 
+For the Zipf benchmark, the maximal speedup is $47.6\%$ on SSD and $25.4\%$ on HDD. For the uniform benchmark, 
+which has neither redundancy not locality, they are $23.8\%$ and $8.9\%$, respectively. 
+The gain is significantly larger for the system with SSD storage, 
+which is much faster on the I/O side. Being more CPU-bound than I/O-bound, its write throughput is more dependent on 
+the MemStore speed than on background writes to the filesystem.  
+
+\begin{table*}
+  \centering
+
+        \begin{tabular}{|c|c|c|c|c|c|}
+      \hline
+       & Zipf, SSD & Zipf, HDD & Uniform, SSD & Uniform, HDD \\
+      \hline
+\none & $75{,}861$  & $60{,}457$ & $74{,}971$ & $35{,}342$ \\
+\basic & $115{,}730$ & $78{,}392$ & $92{,}816$   & $38{,}488$ \\
+      \hline
+    \end{tabular}
+\caption{Write throughput (operations per second) of the best \sys\/ policy (\basic\/) vs \none, across multiple key distributions and disk hardware types. }
+\label{tab:write-throughput}
+\end{table*}
 
 \begin{figure*}[tb]
 
@@ -84,22 +119,6 @@ Measured on the Zipf and uniform key distributions, on SSD and HDD hardware. In 
 \label{fig:write-throughput}
 \end{figure*}
 
-\begin{table*}
-  \centering
-
-        \begin{tabular}{|c|c|c|c|c|c|}
-      \hline
-       & Zipf, SSD & Zipf, HDD & Uniform, SSD & Uniform, HDD \\
-      \hline
-\none & $75{,}861$  & $60{,}457$ & $74{,}971$ & $35{,}342$ \\
-\basic & $115{,}730$ & $78{,}392$ & $92{,}816$   & $38{,}488$ \\
-      \hline
-    \end{tabular}
-
-
-\caption{Write throughput (operations per second) of the best \sys\/ policy (\basic\/) vs \none, across multiple key distributions and disk hardware types. }
-\label{tab:write-throughput}
-\end{table*}
 
 \begin{table*}
   \centering
@@ -139,23 +158,6 @@ Measured on the Zipf and uniform key distributions, on SSD and HDD hardware. In 
   The \adp\/ policy provides double-digit savings for disk I/O. }
   \label{fig:volume}
 \end{figure*}
-
-\subsubsection{Write-Only Workloads}
-
-Our first benchmark set exercises only put operations. It starts from an empty table and performs 500M puts, 
-in parallel from 12 client threads. We study the Zipf and  uniform key distributions. The experiments measure
-write throughput (latency is not meaningful because puts are batched), as well as disk I/O and GC metrics. 
-Every data point is the median among five runs. 
-
-\paragraph{Write throughput} 
-Figure~\ref{fig:write-throughput} depicts the performance speedup for
-\none, \basic, and \adp. Table~\ref{tab:write-throughput} provides the absolute throughput numbers. 
-For the Zipf benchmark, the maximal speedup is $47.6\%$ on SSD and $25.4\%$ on HDD. For the uniform benchmark, 
-which has neither redundancy not locality, they are $23.8\%$ and $8.9\%$, respectively. 
-The gain is significantly larger for the system with SSD storage, 
-which is much faster on the I/O side. Being more CPU-bound than I/O-bound, its write throughput is more dependent on 
-the MemStore speed than on background writes to the filesystem.  
-
 Surprisingly, the \basic\/ policy, which flattens and merges segment indices but avoids 
 redundancy elimination, yields the largest throughput gain. We explain this as follows. By reducing the active 
 segment size to $A=2$\% of the MemStore size, all \sys\/ policies improve insertion time of new versions 
@@ -180,7 +182,34 @@ distribution on SSD, immaterial in other cases).  In what follows, we substantia
 on the I/O side. Going forward, we focus on the more realistic Zipf workload.
 %, and  forgo the \eager\/ heuristic. 
 
-\paragraph{I/O metrics}
+\mypara{I/O metrics}
+
+
+
+With respect to disk use by flushes and compactions, the picture is reversed. In this regard, 
+\basic\/ provides modest savings. It writes $13$\% less bytes than \none\/ on SSD, and $8$\% 
+on HDD. In contrast, \adp\ slashes the number of flushes and compactions by $58\%$ and $61$\%, 
+respectively, and the number of bytes written by almost $30\%$. As expected, the lower the 
+redundancy estimate threshold $R$, the more aggressive the algorithm, and consequently, 
+the higher the savings. Figure~\ref{fig:volume} and Table~\ref{tab:counters} summarize the results. 
+
+Note that the amount of data written to WAL %,186GB 
+(approximately $45$\% of the write volume) remains constant across all  experiments. 
+HBase operators often choose placing log files on inexpensive hard disks, since they are only needed for recovery,
+and so disk wear is not a major concern for WAL data.
+
+All-in-all, there is a tradeoff between the write throughput and storage utilization 
+provided by the different \sys\/ policies. \adp\/ provides multiple operating points that trade major 
+storage savings for minor performance losses.
+
+\mypara{Garbage collection}
+ Redundancy elimination proved to be less impactful 
+than memory management overhead, especially in systems with fast SSD hardware. 
+Figure~\ref{fig:gc-throughput-log2}, which studies GC overhead for a range of policies and tuning 
+parameters, further corroborates this hypothesis. It shows a clear negative correlation between the 
+GC time and the write throughput. 
+Note that this does not necessarily mean that GC time is the only reason for performance reduction. Rather,
+GC cycles may be correlated with other costs, e.g., memory fragmentation, which reduces locality.
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/gc-throughput-log2.png}
@@ -213,34 +242,9 @@ The graph shows a clear negative correlation between the two metrics.
   \label{fig:latency}
 \end{figure*}
 
-With respect to disk use by flushes and compactions, the picture is reversed. In this regard, 
-\basic\/ provides modest savings. It writes $13$\% less bytes than \none\/ on SSD, and $8$\% 
-on HDD. In contrast, \adp\ slashes the number of flushes and compactions by $58\%$ and $61$\%, 
-respectively, and the number of bytes written by almost $30\%$. As expected, the lower the 
-redundancy estimate threshold $R$, the more aggressive the algorithm, and consequently, 
-the higher the savings. Figure~\ref{fig:volume} and Table~\ref{tab:counters} summarize the results. 
-
-Note that the amount of data written to WAL %,186GB 
-(approximately $45$\% of the write volume) remains constant across all  experiments. 
-HBase operators often choose placing log files on inexpensive hard disks, since they are only needed for recovery,
-and so disk wear is not a major concern for WAL data.
-
-All-in-all, there is a tradeoff between the write throughput and storage utilization 
-provided by the different \sys\/ policies. \adp\/ provides multiple operating points that trade major 
-storage savings for minor performance losses.
-
-\paragraph{Garbage collection}
- Redundancy elimination proved to be less impactful 
-than memory management overhead, especially in systems with fast SSD hardware. 
-Figure~\ref{fig:gc-throughput-log2}, which studies GC overhead for a range of policies and tuning 
-parameters, further corroborates this hypothesis. It shows a clear negative correlation between the 
-GC time and the write throughput. 
-Note that this does not necessarily mean that GC time is the only reason for performance reduction. Rather,
-GC cycles may be correlated with other costs, e.g., memory fragmentation, which reduces locality.
-
 \anastas{
-\paragraph{Basic Serialized}
-We also experiment with the serialized segments where index is allocated on the mslab (Section~\ref{ssec:offheap}). We study the write-only workload explained above with zipf key distribution and SSD hardware. The serialized segments are proposed for the case when both index and data are allocated on mslab. Figure~\ref{fig:write_only_off_heap} presents the throughput speedup over \none\/ for \basic\/ policy based on flat or serialized segments. In all benchmarks the data is allocated on on-heap or off-heap mslabs, while only for serialized \basic\/ also the index is allocated in the same mslab. For the flat \basic, the speedup is $27\%$ on-heap and $29\%$ off-heap. For the serialized \basic, the speedup is $33\%$ on-heap and $44\%$ off-heap. The gain from the serialized \basic\/ is larger for the off-heap case, because when index is taken off-heap even less work is left to JVM GC. 
+\mypara{Basic Serialized}
+We also experiment with the serialized segments where index is allocated on the mslab (Section~\ref{ssec:offheap}). We study the same write-only workload as explained above with zipf key distribution and SSD hardware. The serialized segments are proposed for the case when both index and data are allocated on mslab. Figure~\ref{fig:write_only_off_heap} presents the throughput speedup over \none\/ for \basic\/ policy based on flat or serialized segments. In all benchmarks the data is allocated on on-heap or off-heap mslabs, while only for serialized \basic\/ also the index is allocated in the same mslab. For the flat \basic, the speedup is $27\%$ on-heap and $29\%$ off-heap. For the serialized \basic, the speedup is $33\%$ on-heap and $44\%$ off-heap. The gain from the serialized \basic\/ is larger for the off-heap case, because when index is taken off-heap even less work is left to JVM GC. 
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/write-only-off-heap.pdf}
@@ -250,7 +254,7 @@ We also experiment with the serialized segments where index is allocated on the 
 \end{figure}
 }
 
-\subsubsection{Read-Write Workloads}
+\subsubsection{Read-Write Workload}
 
 Our second benchmark studies read latencies under heavy write traffic. 
 We run batched puts from 10 client threads and single-key gets from two other threads. 
@@ -272,168 +276,10 @@ number of segments in the MemStore pipeline (in our experiment, 5). The other fa
 is increased GC overhead in \adp\/ that stems from redundancy elimination. 
 
 
- \remove{ 
-
-
-We compare the strategies by measuring their throughput and latency. In addition we measure the write volume, that is the number of KB written to the file system, and the cumulative GC time of each run.
-
-The results of the following experiments are presented:
-(1) demonstrating the insight from different sets of experiments showing that GC overhead is a great throughput predictor,
-(2) write-only workload - comparing all 4 strategies,
-(3) mixed read-write workload - showing reduction in read latencies of \basic\ and \magic\ strategies with respect to \none.
-(4) evaluating different settings of the \basic\ strategy in order to find its optimal configuration,
-
-
-\paragraph{Write-only workload.}
-Each run creates an empty 50 regions table and then utilizes 12 threads to run 500 million update operations, each writing to all columns. Each such run is repeated 5 times. 
-We measure total  throughput and total volume of MB written to files. We present here the performance results of the run with the median throughput among 5 runs.
-
-Figures~\ref{fig:throughput-ssd} and~\ref{fig:throughput-hdd} depict the lift in throughput \basic, \magic, and \eager\ achieve over \none in SSD and HDD, respectively.
-Tables~\ref{fig:counters:ssd} and ~\ref{fig:counters:hdd} present the number of flushes, disk compactions and WAL files generated during the experiment.
-Figures~\ref{fig:volume-ssd} and~\ref{fig:volume-hdd} depict the write volume in every setting. 
-\magic demonstrates the tradeoff between throughput and write volume. As we increase the compaction threshold more in-memory compaction are triggered which degrades the throughput but at the same time reduces the write volume.
-At the extremes are \basic\ with the highest throughput and \eager with lowest write volume.
-\basic\ and \magic\ both run with $2\%$ active segment. In SSD the limit on the size of the pipeline is 5 and in HDD it is 4.
-\eager\ runs with $25\%$ active segments and limit of 2 on the size of the pipeline.
-The uniques thresholds for \magic\ are $0.2$, $0.35$, and $0.5$.
-
-
-\begin{table}[!t]
-  \centering
-  
-  \begin{subfigure}[tb]{\columnwidth}
-      \centering\small
-    \begin{tabular}{|c|c|c|c|}
-      \hline
-      Policy & $\#$flushes & $\#$compactions & $\#$WAL files\\
-      %\hline
-      \hline
-      \none & 1468	&524&	789 \\
-\basic & 1224&	355&	806 \\
-\adp\/ (R=0.5) &922&	309&	678 \\
-\adp\/ (R=0.35) & 754&	261&	615 \\
-\adp\/ (R=0.2) & 631	&209	&533 \\
-\eager\ & 695	&242&	490 \\
-      \hline
-    \end{tabular}
-	\caption[]{SSD}
-    \label{fig:counters:ssd}
-  \end{subfigure}
-  
-  \begin{subfigure}[t]{\columnwidth}
-    \centering\small
-    \begin{tabular}{|c|c|c|c|c|}
-      \hline
-        Policy & $\#$flushes & $\#$compactions & $\#$WAL files\\
-      %\hline
-      \hline
-      \none & 1504 & 548 & 743 \\
-\basic & 1210 & 443 & 808 \\
-\adp\/ (R=0.5) & 879 & 316 & 695 \\
-\adp\/ (R=0.35) & 711 & 248 & 650 \\
-\adp\/ (R=0.2) & 630 & 216 & 556 \\
-\eager\ & 667 & 242 & 536 \\
-      \hline
-    \end{tabular}
-	\caption[]{HDD}
-    \label{fig:counters:hdd}
-  \end{subfigure}
-
-  \caption{I/O metrics (flushes, compactions, and bytes written) measured for \none\/ vs \sys\/ policies, for the Zipf key distribution. 
-  \sys\/ provides double-digit savings to disk I/O. The impact of I/O reduction is the largest for SSD hardware. }
-  \label{fig:counters}
-\end{table}
-
-\begin{figure}[htb]
-\includegraphics[width=\figw]{Figs/throughput-ssd.png}
-\caption{{\bf  Throughput measured in SSD.} Zipf distribution.
-}
-\label{fig:throughput-ssd}
-\end{figure}
-
-\begin{figure}[htb]
-\includegraphics[width=\figw]{Figs/throughput-hdd.png}
-\caption{{\bf  Throughput measured in HDD.} Zipf distribution. 
-}
-\label{fig:throughput-hdd}
-\end{figure}
-
-
-
-
-\begin{figure}[htb]
-\includegraphics[width=\figw]{Figs/volume-ssd.png}
-\caption{{\bf  Write volume in SSD.} Zipf distribution.
-}
-\label{fig:volume-ssd}
-\end{figure}
-
-\begin{figure}[htb]
-\includegraphics[width=\figw]{Figs/volume-hdd.png}
-\caption{{\bf  Write volume in HDD.} Zipf distribution.
-}
-\label{fig:volume-hdd}
-\end{figure}
-
-Figures~\ref{fig:throughput-ssd-uniform} and~\ref{fig:throughput-hdd-uniform} depict the throughput results with uniform distribution in SSD and HDD, respectively.
-Tables~\ref{fig:counters-uniform:ssd} and ~\ref{fig:counters-uniform:hdd} present the number of flushes, disk compactions and WAL files generated during the experiment.
-Figures~\ref{fig:volume-ssd-uniform} and~\ref{fig:volume-hdd-uniform} depict the write volume in every setting. 
-
-
-\begin{figure}[htb]
-\includegraphics[width=\figw]{Figs/throughput-ssd-uniform.png}
-\caption{{\bf  Throughput measured in SSD.} Uniform distribution.
-}
-\label{fig:throughput-ssd-uniform}
-\end{figure}
-
-\begin{figure}[htb]
-\includegraphics[width=\figw]{Figs/throughput-hdd-uniform.png}
-\caption{{\bf  Throughput measured in HDD.} Uniform distribution. 
-}
-\label{fig:throughput-hdd-uniform}
-\end{figure}
-
-\begin{figure}[htb]
-%\includegraphics[width=\figw]{Figs/volume-ssd-uniform.png}
-\caption{{\bf  Write volume in SSD.} Zipf distribution.
-}
-\label{fig:volume-ssd-uniform}
-\end{figure}
-
-\begin{figure}[htb]
-%\includegraphics[width=\figw]{Figs/volume-hdd-uniform.png}
-\caption{{\bf  Write volume in HDD.} Zipf distribution.
-}
-\label{fig:volume-hdd-uniform}
-\end{figure}
-
-
-
-\paragraph{Mixed workload.}
-Each run is comprised of two phases. 
-The first phase creates an empty 50 regions table. It then loads the table with 10GB of data by running 100 million update operations chosen uniformly at random, each writing to all columns. 
-The second phase measures the performance of a single thread running 150,000 read operation. 
-We measure the 50th, 75th, 90th, 95th and 99th percentiles.
-An additional YCSB client is used to run background traffic. 
-This client utilizes 12 threads to run update operations while we measure the read operations. 
-Both reads and background traffic are chosen from a Zipf distribution.
-Each such run is repeated three times. 
-
-Figure~\ref{fig:latency-speedup-hdd} depicts the latency speed-up \basic\ and \magic\ achieve over \none.
-
-\begin{figure}[htb]
-\includegraphics[width=\figw]{Figs/latency-speedup-hdd.png}
-\caption{{\bf Latency speed-up in HDD.} 
-}
-\label{fig:latency-speedup-hdd}
-\end{figure}
-}
-
 \anastas{
-\paragraph{Scans}
-Finally, we study the scans behavior on SSD hardware with zipf keys distribution. We chose to practice the standard YCSB scans workload ($workload$ $e$), where short ranges of records are queried with small amount of puts in the background. Among 12 threads, 11 are proceeding with scanning 100 records and one thread writes. The workload is measured after 500M writes are loaded. The latency speedup (or slowdown) is presented in Figure~\ref{fig:scans}.
-
+\subsubsection{Scan-Write Workload}
+Finally, we study the scans behaviour on SSD hardware with zipf keys distribution. We chose to practice the standard YCSB scans workload ($workload$ $e$), where 95\% of the operations are short range queries and the other 5\% are put operations.  The workload is measured after loading 50GB of data (500M write operations) to make sure most if not all keys have some version of the data on disk. The latency speedup (or slowdown) is presented in Figure~\ref{fig:scans}.
+}
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/scans.pdf}
 \caption{Latency speedup for scans of \basic.
@@ -441,9 +287,9 @@ Finally, we study the scans behavior on SSD hardware with zipf keys distribution
 \label{fig:scans}
 \end{figure}
 
-}
 
-\subsubsection{Parameter Tuning} \label{ssec:tuning}
+
+\subsection{Parameter Tuning} \label{ssec:tuning}
 One of the main sources of memory management overhead is the skiplist data structure used to index the active  memory segment.
 Not only  is it bigger in size compared to a flat index, it is also fragmented whereas a static index is stored in a consecutive block of memory. Therefore, flat storage incurs smaller overhead in terms of allocation, GC, and cache misses.
 We first tune the size of this data structure.
