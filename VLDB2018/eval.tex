@@ -432,7 +432,15 @@ Figure~\ref{fig:latency-speedup-hdd} depicts the latency speed-up \basic\ and \m
 
 \anastas{
 \paragraph{Scans}
-Finally, we study the scans behavior on SSD hardware with zipf keys distribution. We chose to practice the standard YCSB scans workload ($workload$ $e$), where short ranges of records are queried with small amount of puts in the background. Among 12 threads, 11 are proceeding with scanning 100 records and one thread writes. The workload is measured after 500M writes are loaded. 
+Finally, we study the scans behavior on SSD hardware with zipf keys distribution. We chose to practice the standard YCSB scans workload ($workload$ $e$), where short ranges of records are queried with small amount of puts in the background. Among 12 threads, 11 are proceeding with scanning 100 records and one thread writes. The workload is measured after 500M writes are loaded. The latency speedup (or slowdown) is presented in Figure~\ref{fig:scans}.
+
+\begin{figure}[htb]
+\includegraphics[width=\figw]{Figs/scans.pdf}
+\caption{Latency speedup for scans of \basic.
+}
+\label{fig:scans}
+\end{figure}
+
 }
 
 \subsubsection{Parameter Tuning} \label{ssec:tuning}

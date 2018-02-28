@@ -39,12 +39,20 @@ The in-memory flush makes the active segment immutable and creates a new active 
 
 The replaced active segment is then \emph{flattened} and added to the pipeline.
 This involves replacing the dynamic segment index (e.g., skiplist) by a compact ordered array, 
-which is suitable for immutable data and supports fast lookup via binary search. 
+which is suitable for immutable data and supports fast lookup via binary search (as in Figure~\ref{fig:flattening}). 
 The indexed data cells are unaffected by the index's flattening.
 Flattening reduces the MemStore's memory footprint, which delays  disk flushes, positively affecting both read latency  (by increasing the MemStore's hit rate) and write volume.
   An additional advantage of the flat layout  is that in managed environments, 
  the index can be allocated in off-heap (unmanaged) memory, which can improve performance predictability 
  through reduced garbage collection jitter~\cite{alibabahbase}; this approach is  discussed in Section~\ref{ssec:offheap} below.
+
+
+\begin{figure}[tbh]
+\center
+\includegraphics[width=\columnwidth]{flattening.pdf} 
+\caption{Flattening process... TBD}
+\label{fig:flattening}
+\end{figure}
 
 
 In case there is available space in the pipeline (the number of pipeline segments is smaller than $S$), 
@@ -172,19 +180,19 @@ HBase mslabs may be allocated off-heap.
 
 \begin{figure}[tbh]
 \center
-\includegraphics[width=0.9\columnwidth]{on-heap} 
-\caption{Standard on-heap allocation with cell objects.}
+\includegraphics[width=0.9\columnwidth]{serializing.pdf} 
+\caption{Serializinf process... TBD}
 \label{fig:on-heap}
 \end{figure}
-\begin{figure}[tbh]
-\center
-\includegraphics[width=0.75\columnwidth]{off-heap} 
-\caption{Off-heap allocated flat segment referencing data that resides in mslabs.}
-\label{fig:off-heap}
-\end{figure}
+%\begin{figure}[tbh]
+%\center
+%\includegraphics[width=0.75\columnwidth]{off-heap} 
+%\caption{Off-heap allocated flat segment referencing data that resides in mslabs.}
+%\label{fig:off-heap}
+%\end{figure}
 
 \sys's off-heap version takes this approach one step further, and allocates the index of the flat segments on mslab as well (on-heap or off-heap). Such a segment (denoted \emph{serialized segment}) has its index and data allocated on the same mslab, meaning they are either both off-heap or both on-heap. Serialized segment forgoes the intermediate cell
-objects, and has the array entries point directly to the the mslabs holding keys and values, as illustrated in Figure~\ref{fig:off-heap}.  
+objects, and has the array entries point directly to the the mslabs holding keys and values, as illustrated in Figure~\ref{fig:on-heap}.  
 Removing the cell objects yields
 a substantial space reduction, especially when data items are small, and elimination the intermediate level of indirection. Offloading the data from the Java heap
 has been shown to be effective for read traffic~\cite{alibabahbase}. However, it necessitates recreating temporary
