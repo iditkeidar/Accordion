@@ -237,7 +237,7 @@ We also experiment with the serialized segments where index is allocated on the 
 
 Our second benchmark studies read latencies under heavy write traffic. 
 We run batched puts from 10 client threads and single-key gets from two other threads. 
-The keys of all operations are distributed identically (Zipf). We measure the $50$th, 
+The keys of all operations are distributed identically (Zipf). The workload is measured after loading 30GB of data (300M write operations) to make sure most if not all keys have some version of the data on disk. We measure the $50$th, 
 $75$th, $90$th, $95$th and $99$th get latency percentiles. Figure~\ref{fig:latency} 
 depicts the relative latency slowdown of \basic\/ and \adp\/ ($R=0.2$) versus \none.
 %(values greater than 1 mean slowdown). 
@@ -278,7 +278,7 @@ is increased GC overhead in \adp\/ that stems from redundancy elimination.
 
 \anastas{
 \subsubsection{Scan-Write Workload}
-Finally, we study the scans behaviour on SSD hardware with zipf keys distribution. We chose to practice the standard YCSB scans workload ($workload$ $e$), where 95\% of the operations are short range queries and the other 5\% are put operations.  The workload is measured after loading 50GB of data (500M write operations) to make sure most if not all keys have some version of the data on disk. The latency speedup (or slowdown) is presented in Figure~\ref{fig:scans}.
+Finally, we study the scans behaviour on SSD hardware with zipf keys distribution. We chose to practice the standard YCSB scans workload (workload $e$), where 95\% of $500,000$ operations are short range queries and the other 5\% are put operations.  The workload is measured after loading 50GB of data (500M write operations). The latency speedup (or slowdown) is presented in Figure~\ref{fig:scans}.
 }
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/scans.pdf}
@@ -317,7 +317,7 @@ This throttles the index creation rate. On the flip side, the read API's must sc
 which degrades their performance.
 %Hence, we run the same experiments as explained above, varying the limit for the size of pipeline.
 Figure~\ref{fig:pipeline} depicts the throughput results as a function of the number of segments in the pipeline. 
-The peak throughput is achieved with $S=5$ on SSD and $S=4$ and HDD.
+The peak throughput is achieved with $S=5$ on SSD and $S=4$ on HDD.
 
 \begin{figure*}[tb]
 
@@ -338,9 +338,10 @@ The peak throughput is achieved with $S=5$ on SSD and $S=4$ and HDD.
 \label{fig:pipeline}
 \end{figure*}
 
+\mypara{Parameter Tuning for \eager} 
 With the optimal active segment size found for \basic\ ($A=0.02$), \eager\/ performs poorly since compacting the data so frequently is inefficient. 
 Figure~\ref{fig:eager-throughput} shows that when the active segment is much bigger ($A=0.25$), \eager\ performs better, and outperforms the 
-baseline by $20$\%. We also discovered that the write volume for \eager\ is the roughly the same in these two settings whereas \basic's write volume 
+baseline by $20$\%. We also discovered that the write volume for \eager\ is roughly the same in these two settings whereas \basic's write volume 
 increases with $A$.ß (these results are not shown).  
 Since \adp\ is always superior to \eager, we excluded \eager\ from the experiments reported above.  
 
@@ -352,29 +353,3 @@ Since \adp\ is always superior to \eager, we excluded \eager\ from the experimen
 \end{figure}
 
 
-
-\remove{
-With a different experimental setup the tuning results are different.
-For example when running similar workload with 100 regions and 16GB heap per region server we get different results.
-\begin{figure}[htb]
-\includegraphics[width=\figw]{Figs/dynamic-fraction-2.png}
-\caption{{\bf Dynamic fraction tuning.} 
-}
-\label{fig:dynamic-fraction-2}
-\end{figure}
-
-\begin{figure}[htb]
-\includegraphics[width=\figw]{Figs/pipeline-2.png}
-\caption{{\bf Pipeline size tuning.} 
-}
-\label{fig:pipeline-2}
-\end{figure}
-
-
-\begin{figure}[htb]
-\includegraphics[width=\figw]{Figs/eager-volume.png}
-\caption{Write volume: \eager\/ vs \basic\/ in different settings.
-}
-\label{fig:eager-volume}
-\end{figure}
-}
