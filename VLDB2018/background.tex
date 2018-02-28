@@ -5,7 +5,7 @@ It is implemented in Java. Similarly to other modern KV-stores, HBase follows th
 Google's Bigtable~\cite{Chang2008}. We sketch out their common design principles 
 and terminology. 
 
-\paragraph{Data model}
+\mypara{Data model}
 KV-stores hold data items referred to as \emph{rows} identified by unique 
 row keys. Each row can consist of multiple \emph{columns} (sometimes called fields) identified by unique 
 column keys. Co-accessed columns (typically used by the same application) can be 
@@ -22,14 +22,14 @@ an ordered pair of begin and end row keys).
 \begin{figure}[tb]
 \center
 \includegraphics[width=0.9\columnwidth]{LSM} 
-\caption{A log-structured merge (LSM) tree consists of a small memory store ({\em MemStore} in HBase) 
+\caption{A log-structured merge (LSM) store consists of a small memory store ({\em MemStore} in HBase) 
 and a large disk store (collection of {\em HFiles}). Put operations update the MemStore. The latter is 
 double-buffered: a flush creates an immutable \emph{snapshot} of the active buffer and  a new active 
 buffer. The snapshot is then written to disk in the background.}
 \label{fig:LSM}
 \end{figure}
 
-\paragraph{Data management}
+\mypara{Data management}
 KV-stores achieve scalability by sharding tables into range partitions by row key. 
 A shard is called {\em region\/} in HBase (\emph{tablet} in Bigtable). 
 A region is a collection of \emph{stores}, each associated with a column family. 
@@ -46,8 +46,8 @@ in Bigtable). Each region server controls multiple stores (tens to hundreds in p
 For locality of access, the HBase management plane (\emph{master server}) tries to lay out the 
 HFiles in HDFS so that their primary replicas are collocated with the region servers that control them. 
 
-\paragraph{LSM trees}
-Each store is organized as an LSM tree, which collects writes in a memory store --
+\mypara{LSM stores}
+Each store is organized as an LSM store, which collects writes in a memory store --
 \emph{MemStore} in HBase -- and periodically flushes the memory into a disk store, as illustrated in 
 Figure~\ref{fig:LSM}. Each flush creates a new immutable HFile, ordered by row key for query efficiency. 
 HFiles are created big, hence flushes are relatively infrequent. 
@@ -96,7 +96,7 @@ snapshot buffers) and in the HFiles. The HFile search  is expedited through Bloo
 filters~\cite{Chang2008}, which eliminate most redundant disk reads. The system 
 uses a large RAM cache for popular HFile blocks (by default $40\%$ of the heap).
 
-\paragraph{Memory organization}
+\mypara{Memory organization}
 The MemStore's active buffer is traditionally implemented as a dynamic index over a collection of cells.  
 The HBase implementation uses the standard Java concurrent skiplist map~\cite{javaskiplist}.
 Data is multi-versioned -- every put creates a new immutable version of the row it is applied to, 
@@ -111,7 +111,7 @@ independently of the workload. This is especially wasteful for heavy-tailed (e.g
 which are prevalent in production workloads~\cite{Devineni:2015}. 
 
 The \sys\/ algorithm takes care of precisely these problems, to boost  
-LSM tree performance and reduce  storage wear-out. Section~\ref{sec:accordion} 
+LSM store performance and reduce  storage wear-out. Section~\ref{sec:accordion} 
 presents it in detail. 
 
 
