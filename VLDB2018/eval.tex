@@ -22,7 +22,7 @@ SSD and HDD, respectively.
 In each cluster, we use three nodes for HDFS and HBase instances, which share the hardware. The HDFS data 
 replication ratio is 3x. HBase exploits two machines as region servers, and one as a master server. 
 
-A region server runs  with 8GB heap, under G1GC memory management. 
+A region server runs  with 8GB heap, under G1GC memory management. Only for serialized segment experiments we use MSLAB memory management.
 We use the default memory layout,  which allocates $40\%$ of the heap (roughly 3GB) to the MemStore 
 area, and $40\%$ more to the read-path block cache. We apply an asynchronous WAL in order to focus on real-time 
 write-intensive workloads (a synchronous WAL implies an order-of-magnitude slower writes). The log aggregation
@@ -47,7 +47,7 @@ is less representative of real workloads and is studied for reference only). The
 is generated following the description in~\cite{Gray:1994:QGB:191839.191886}, with $\theta=0.99\%$ 
 (YCSB standard).
 
-\inpurple{Write-only experiments consist of 500M writes. Mixed workload experiments consist of a load phase (write-only) and a run phase with concurrent reads and writes. 
+\inpurple{Write-only experiments consist of 500M writes. Mixed workload and scans experiments consist of a load phase (write-only) and a run phase with concurrent reads (or scans) and writes. 
 Only the performance of the run phase is measured and reported.  }
 Depending on the setting (workload, algorithm, and hardware type), 
 the duration of 
