@@ -61,8 +61,8 @@ indexed by all original segments. This is a lightweight process that does not el
 
 Optionally, it can further perform \emph{redundant data elimination} by
 creating a flat index with no redundancies and disposing redundant data cells. 
-In case the memory store manages its cell data storage internally (off-heap), the surviving cells are relocated
-to a new contiguous buffer. Otherwise, the redundant cells are simply de-referenced, allowing the garbage-collector to reclaim them.    
+In case the memory store manages its cell data storage internally (via MSLAB), the surviving cells are relocated
+to a new chunk (to avoid internal chunk fragmentation). Otherwise, the redundant cells are simply de-referenced, allowing the garbage-collector to reclaim them.    
 %
 The choice whether to eliminate redundant data or not is guided by the policies described in Section~\ref{ssec:policies} below.
 
@@ -169,17 +169,16 @@ compaction fails if a disk flush concurrently removes some segments from the pip
 
 
 \subsection{Off-Heap  Allocation} \label{ssec:offheap}
-Prior to \sys, HBase allocated its MemStore on-heap, using a standard Java skiplist for the active buffer and the snapshot. \sys\ continues to use the same data structure -- skiplist for the active segment, but adopts arrays for the flat segments and snapshot. 
-Each skiplist node or array entry holds a reference to a \emph{cell} object, which holds a reference to a buffer holding a key-value pair,
+As explained above, prior to \sys, HBase allocated its MemStore indicies on-heap, using a standard Java skiplist for the active buffer and the snapshot. \sys\ continues to use the same data structure -- skiplist for the active segment, but adopts arrays for the flat segments and snapshot. 
+Each active or flat segment's index holds a reference to a \emph{cell} object, which holds a reference to a buffer holding a key-value pair,
 as illustrated in Figure~\ref{fig:on-heap}. 
-The cell object is used for internal HBase scan APIs, and can reference data in two different formats: either a standard Java object
-called \emph{pojo} -- Pure Old Java Object -- or an address in a bulk-allocated array called \emph{mslab} -- MemStore local allocation buffer~\cite{hbasemslab}. 
-HBase mslabs may be allocated off-heap. 
+Also as explained above, the cell object is used for internal HBase scan APIs, and can reference data in two different formats: either a standard Java object
+called \emph{pojo} -- Pure Old Java Object -- or an address in an MSLAB chunk. HBase MSLAB, specifically the chunks, may be allocated off-heap. 
 
 \begin{figure*}[tbh]
 \center
 \includegraphics[width=0.9\columnwidth]{serializing.pdf} 
-\caption{Serializinf process... TBD}
+\caption{The difference between the flat segment and the serialized segment. The ordered array of the cell objects cannot be directly serialized and streamed into an off-heap chunk. The transformation shrinks the cell object into just 20 bits, and writes on the index chunk.}
 \label{fig:on-heap}
 \end{figure*}
 %\begin{figure}[tbh]
@@ -189,8 +188,8 @@ HBase mslabs may be allocated off-heap.
 %\label{fig:off-heap}
 %\end{figure}
 
-\sys's off-heap version takes this approach one step further, and allocates the index of the flat segments on mslab as well (on-heap or off-heap). Such a segment (denoted \emph{serialized segment}) has its index and data allocated on the same mslab, meaning they are either both off-heap or both on-heap. Serialized segment forgoes the intermediate cell
-objects, and has the array entries point directly to the the mslabs holding keys and values, as illustrated in Figure~\ref{fig:on-heap}.  
+\sys's serialized version takes this approach one step further. If the data is allocated using MSLAB, \sys\/ allocates the index of the flat segments on an MSLAB chunk as well. Such a segment (denoted \emph{serialized segment}) has its index and data allocated via same MSLAB object, but on different chunks. The MSLAB object belongs to a MemStore and produces either only on-heap or only off-heap chunks. Serialized segment forgoes the intermediate cell
+objects, and has the array entries point directly to the the chunks holding keys and values, as illustrated in Figure~\ref{fig:on-heap}.  
 Removing the cell objects yields
 a substantial space reduction, especially when data items are small, and elimination the intermediate level of indirection. Offloading the data from the Java heap
 has been shown to be effective for read traffic~\cite{alibabahbase}. However, it necessitates recreating temporary

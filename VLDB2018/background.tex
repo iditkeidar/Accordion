@@ -118,7 +118,7 @@ presents it in detail.
 \anastas{
 \mypara{Memory allocation}
 HBase has two variations of how its MemStore data memory can be allocated: either as a standard Java object
-called \emph{pojo} -- Pure Old Java Object -- or as a bulk-allocated array via module called \emph{MSLAB} -- MemStore Local Allocation Buffer~\cite{hbasemslab}. The later was presented in order to avoid full GC pauses, however recently with the G1 GC the full pauses are rare. Recently, MSLAB is mostly used for the off-heap memory allocation. MSLAB ensures that the memory for a memstore is made of large blocks, denoted \emph{chunks}. Each chunk is fixed size and holds data for multiple cells. Each chunk only belongs to one MemStore.
+called \emph{pojo} -- Pure Old Java Object -- or as a part of bulk-allocated byte array via module called \emph{MSLAB} -- MemStore Local Allocation Buffer~\cite{hbasemslab}. The later was presented in order to avoid full GC pauses, however with introduction of the G1GC the full pauses are rare. Recently, MSLAB in HBase 2.0 is mostly used for the off-heap memory allocation. MSLAB ensures that the memory for a memstore is made of large blocks, denoted \emph{chunks}. Each chunk is fixed size and holds data for multiple cells. Each chunk only belongs to one MemStore.
 
 }
 
