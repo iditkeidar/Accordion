@@ -16,13 +16,13 @@ and a pipeline of flat segments. A disk flush creates a snapshot of the pipeline
 \label{fig:accordion}
 \end{figure}
 
-\sys\ introduces a \emph{compacting} memory store to the LSM tree design framework. In contrast to the traditional memory store, 
+\sys\ introduces a \emph{compacting} memory store to the LSM store design framework. In contrast to the traditional memory store, 
 which maintains RAM-resident data in a single monolithic data structure, \sys\ manages data as a \emph{pipeline} of 
 \emph{segments} ordered by creation time. Each segment is an index over a collection of data cells.
 At all times, the most recent segment, called \emph{active}, is mutable;
 it absorbs put operations. The rest of the segments are immutable.  
 %
-Get and scan operations retrieve data from all  segments,  similarly to a traditional LSM tree read from multiple files. 
+Get and scan operations retrieve data from all  segments,  similarly to a traditional LSM store read from multiple files. 
   
 Figure~\ref{fig:accordion} illustrates the \sys\ architecture. It is parameterized by two values:
 \begin{itemize}
@@ -46,14 +46,12 @@ Flattening reduces the MemStore's memory footprint, which delays  disk flushes, 
  the index can be allocated in off-heap (unmanaged) memory, which can improve performance predictability 
  through reduced garbage collection jitter~\cite{alibabahbase}; this approach is  discussed in Section~\ref{ssec:offheap} below.
 
-
-\begin{figure}[tbh]
+\begin{figure*}[tbh]
 \center
 \includegraphics[width=\columnwidth]{flattening.pdf} 
-\caption{Flattening process... TBD}
+\caption{The process of flattening an active segment with skiplist index into a flat segment with ordered array index. The data remains untouched. }
 \label{fig:flattening}
-\end{figure}
-
+\end{figure*}
 
 In case there is available space in the pipeline (the number of pipeline segments is smaller than $S$), 
 the flattened segment is simply added to the pipeline and the memory flush takes no further actions.  
@@ -178,12 +176,12 @@ The cell object is used for internal HBase scan APIs, and can reference data in 
 called \emph{pojo} -- Pure Old Java Object -- or an address in a bulk-allocated array called \emph{mslab} -- MemStore local allocation buffer~\cite{hbasemslab}. 
 HBase mslabs may be allocated off-heap. 
 
-\begin{figure}[tbh]
+\begin{figure*}[tbh]
 \center
 \includegraphics[width=0.9\columnwidth]{serializing.pdf} 
 \caption{Serializinf process... TBD}
 \label{fig:on-heap}
-\end{figure}
+\end{figure*}
 %\begin{figure}[tbh]
 %\center
 %\includegraphics[width=0.75\columnwidth]{off-heap} 
