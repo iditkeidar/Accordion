@@ -9,7 +9,7 @@ graph storage (Facebook/Dragon~\cite{dragon},
 Pinterest/Zen~\cite{zen}), and many more. 
 
 % LSM stores optimize disk I/O 
-The leading approach for implementing write-intensive key-value storage is \emph{log-structured merge (LSM)} stores~\cite{O'Neil:1996}.
+The leading approach for implementing write-intensive key-value storage is \emph{log-structured merge (LSM)} stores~\cite{O'Neil1996}.
 This technology is ubiquitously used by popular key-value storage platforms~\cite{leveldb, rocksdb, scylladb, Chang2008, cassandra, hbase, mongodb, mysql}. 
 %(e.g., LevelDB~\cite{leveldb},  RocksDB~\cite{rocksdb}, ScyllaDB~\cite{scylladb}, Bigtable~\cite{Chang2008}, Cassandra~\cite{cassandra}, HBase, MongoDB~\cite{mongodb}, MySql~\cite{mysql}). 
 The premise for using LSM stores is the major disk access bottleneck, exhibited even with today's SSD hardware~\cite{rocksdb,Tanenbaum:2014:MOS:2655363,Wu:2012:AWB:2093139.2093140}. 
@@ -38,7 +38,7 @@ accelerates device wear-out, especially for SSD hardware~\cite{Hu:2009}.
 
 Moreover, as the amount of memory available in commodity server is rising LSM stores gravitate towards using larger memory stores.
 This has led to unpredictable \emph{garbage collection (GC)} pauses in managed-language stores~\cite{cassandra, hbase} to become a significant problem.
-This is crucial, for example, when timeouts are used to detect faulty storage nodes and initiate fail-over.
+These pauses are crucial, for example, when timeouts are used to detect faulty storage nodes and initiate fail-over.
 In particular, state-of-the-art memory stores are organized as dynamic data structures consisting of many small objects,
 which become inefficient when the memory store size increases; they are neither cache-friendly nor GC-friendly.
 
@@ -49,9 +49,9 @@ of organizing the disk store as a sequence of files created upon memory store ov
 address memory management. 
 And yet, the amount of data written by memory flushes  
 directly impacts the ensuing flush and compaction toll. 
-Memory stores have expanded in size, which make flushes less frequent 
-they do not physically delete removed or overwritten data, and do not change the layout of data that is doomed to be immutable while in-memory.
-Therefore they do not reduce the amount of data written to disk.
+Memory stores have expanded in size, which make flushes less frequent. 
+Memory stores, however, do not physically delete removed or overwritten data, and do not change the layout of data that is doomed to be immutable while in-memory.
+Therefore, they do not reduce the amount of data written to disk.
 
 We are not aware of any work that tried to directly tackle the memory management problem in LSM stores. 
 Two widely used technique to work around lengthy JVM GC pauses when working with large heap sizes are 
@@ -70,19 +70,20 @@ We introduce \sys, an algorithm for memory store management in LSM stores.
  Section~\ref{sec:accordion} fleshes out its details.
 
 % Benefits
-This new design has three key benefits: 
+This benefits of the new design are three-fold:
+\begin{itemize} 
 %(1) space reduction -> reduces disk compaction write amplification and read latency
- First, the reduced footprint of immutable indices as well as in-memory compactions delay disk flushes. In turn, this reduces 
+ \item First, the reduced footprint of immutable indices as well as in-memory compactions delay disk flushes. In turn, this reduces 
  the write volume by reducing the amount of disk compactions  and improves read latency as more reads can be satisfied from RAM.
 We note that unlike disk levels in LSM design where read latency suffers from the need to
 search multiple files on disk,  \sys's additional immutable segments reside in RAM and hence can be searched efficiently, even in parallel.
  %(2) gc reduction -> increases throughput
- Second, by dramatically reducing the size of the dynamic segment  \sys\ reduces GC overhead, thus improving write throughput and making performance more predictable.
+\item Second, by dramatically reducing the size of the dynamic segment  \sys\ reduces GC overhead, thus improving write throughput and making performance more predictable.
 %(3) flat layout -> cache friendly and off-heap friendly
-Finally, the flat nature of immutable indices improves locality of reference and hence boosts hardware cache efficiency. 
+\item Finally, the flat nature of immutable indices improves locality of reference and hence boosts hardware cache efficiency. 
 This flat organization is also readily amenable to off-heap allocation, which further reduces memory consumption
  by eliminating the need to store Java objects for data items. 
-
+\end{itemize}
  
 % Experiments
 \sys\ is implemented in HBase production code. In Section~\ref{sec:eval} we experiment with the \sys\ HBase implementation in a range of scenarios.
