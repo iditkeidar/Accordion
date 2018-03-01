@@ -15,7 +15,7 @@ At all times, the most recent segment, called \emph{active}, is mutable;
 it absorbs put operations. The rest of the segments are immutable.  
 %
 In addition to searching data in the disk store, get and scan operations traverse all memory segments,  similarly to a traditional LSM store read from multiple files. 
-\eshcar{ explain that we can in some cases skip some of the segments...}
+Memory segments do not maintain Bloom filters like the HFiles do, however, they maintain other metadata like key ranges and time ranges to eliminate redundant reads. In addition, it is possible to search in multiple memory segments in parallel.
   
 Figure~\ref{fig:accordion} illustrates the \sys\ architecture. It is parameterized by two values:
 \begin{itemize}
@@ -150,11 +150,10 @@ is roughly one half of the relevant data, since the pipeline holds $S-1$ unmerge
 Over time, $u$ becomes more accurate while $t$ grows. 
 
 \adp\/ triggers redundancy elimination with probability $t$ if the fraction of redundant keys $1-u$ exceeds a parameter 
-threshold $R$. The rationale for doing so is that prediction based on $u$ becomes more accurate with time, whence 
+threshold $R$. The rationale for doing so is that prediction based on $u$ becomes more accurate with time, hence 
 compactions become more important because the component is bigger and more space can be saved.
 
-
-\eshcar{ add description of WAL truncation}
+\mypara{WAL Truncation.} Since in-memory compaction delays disk flushes, it can cause HLog files (WAL) to become longer and longer, and in some rare cases be unbounded in size. The system protects against such scenario by forcing flush to disk whenever the HLog size exceeds a certain threshold. Even though, it is best to try and keep the HLog files as small as possible without loosing data. The way \sys\ handles this is by maintaining the oldest version number  (smallest timestamp) stored in memory. Obviously this number increases monotonically due to in-memory compactions which are eliminating old versions (and specifically the oldest version). Hence whenever this number increases the WAL can be notified and old log files are collected.
 
 \subsection{Concurrency} \label{ssec:impl-details}
 
