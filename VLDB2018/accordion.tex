@@ -62,17 +62,17 @@ In managed environments, it can be allocated in off-heap (unmanaged) memory, whi
     \label{fig:flattening:flat}
   \end{subfigure}
   \begin{subfigure}[t]{0.5\columnwidth}
-      \includegraphics[width=\figw]{flat-seg.pdf}
+      \includegraphics[width=\figw]{merged-seg.pdf}
       \caption[]{Merged segment}
     \label{fig:flattening:merge}
   \end{subfigure}
   \begin{subfigure}[t]{0.5\columnwidth}
-      \includegraphics[width=\figw]{flat-seg.pdf}
+      \includegraphics[width=\figw]{compacted-seg.pdf}
       \caption[]{Compacted segment}
     \label{fig:flattening:compaction}
   \end{subfigure}
 
-\caption{The active segment has a skiplist index. After a segment is added to the pipeline its index is flattened into an ordered array index. When the pipeline consists of $S$ segments in the pipeline they are either merged or compacted. During a flattening and merge processes  he data remains untouched. During a compaction indices are merged and redundancies in the data are eliminated.} 
+\caption{The active segment has a skiplist index. After a segment is added to the pipeline its index is flattened into an ordered array index. When the pipeline consists of $S$ segments in the pipeline they are either merged or compacted. During a flattening and merge processes the data remains untouched. During a compaction indices are merged and redundancies in the data are eliminated. The key $K$ was updated twice on timestamp $ts=1$ and later on timestamp $ts=2$, only on compacted segment we see redundant version ($ts=1$) eliminated.} 
 \label{fig:flattening}
 \end{figure*}
 
