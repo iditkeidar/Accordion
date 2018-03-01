@@ -278,7 +278,7 @@ is increased GC overhead in \adp\/ that stems from redundancy elimination.
 
 \anastas{
 \subsubsection{Scan-Write Workload}
-Finally, we study the scans behaviour on SSD hardware with zipf keys distribution. We chose to practice the standard YCSB scans workload (workload $e$), where 95\% of $500,000$ operations are short range queries and the other 5\% are put operations.  The workload is measured after loading 50GB of data (500M write operations). The latency speedup (or slowdown) is presented in Figure~\ref{fig:scans}.
+Finally, we study the scans behavior on the SSD hardware with Zipf keys distribution. We chose to practice the standard YCSB scans workload (workload $e$), where 95\% of $500,000$ operations are short range queries and the other 5\% are put operations.  The workload is measured after loading 50GB of data (500M write operations). The latency slowdown of \basic\/ over \none\/ is presented in Figure~\ref{fig:scans}. Here we also experiment with different size of the pipeline (parameter $S$). With only one segment in the pipeline ($S=1$) the search for a key is a bit faster, than with long pipeline ($S=5$). We can see that the slowdown for short pipeline is really negligible, up to $3\%$ at the worst case. When pipeline may include up to five segments (as in all other experiments we did) the scans perform little worse and the slowdown for any percentile is between $2\%$ to $9\%$. This resembles the SSD reads slowdown.
 }
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/scans.pdf}
