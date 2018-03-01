@@ -221,9 +221,9 @@ The graph shows a clear negative correlation between the two metrics.
 \label{fig:gc-throughput-log2}
 \end{figure}
 
-\anastas{
+\inpurple{
 \mypara{Basic Serialized}
-We also experiment with the write-only workload on the serialized segments, where the index is allocated on the MSLAB chunk (Section~\ref{ssec:offheap}). We concentrate on the Zipf key distribution and the SSD hardware. Only this set of experiments is running using MSLAB memory allocation. Figure~\ref{fig:write_only_off_heap} presents the throughput speedup over \none\/ for \basic\/ policy based on flat or serialized segments. We experiment with all MSLAB chunks being allocated on-heap or off-heap. Note that only for serialized \basic\/ also the index is allocated on the chunk. For the flat \basic, the speedup is $27\%$ on-heap and $29\%$ off-heap. For the serialized \basic, the speedup is $33\%$ on-heap and $44\%$ off-heap. The gain from the serialized \basic\/ is larger for the off-heap case, because when index is taken off-heap even less work is left to JVM GC. 
+We also experiment with the write-only workload on the serialized segments, where the index is allocated on the MSLAB chunk (Section~\ref{ssec:offheap}). We concentrate on the Zipf key distribution and the SSD hardware. Here memory is managed using MSLAB memory allocation. We run two sets of experiments: in the first set all MSLAB chunks are allocated on-heap and in the second set  all MSLAB chunks are allocated off-heap. Recall that in the serialized flavour of \basic\/ the serialized index itself is also allocated on a chunk . Figure~\ref{fig:write_only_off_heap} presents the throughput speedup of the flat and serialized flavours of \basic\/ policy over \none. For the flat \basic, the speedup is $27\%$ on-heap and $29\%$ off-heap. For the serialized \basic, the speedup is $33\%$ on-heap and $44\%$ off-heap. The gain from the serialized \basic\/ is larger for the off-heap case, because when index is taken off-heap even less work is left to JVM GC. 
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/write-only-off-heap.pdf}
@@ -276,9 +276,9 @@ number of segments in the MemStore pipeline (in our experiment, 5). The other fa
 is increased GC overhead in \adp\/ that stems from redundancy elimination. 
 
 
-\anastas{
+\inpurple{
 \subsubsection{Scan-Write Workload}
-Finally, we study the scans behavior on the SSD hardware with Zipf keys distribution. We chose to practice the standard YCSB scans workload (workload $e$), where 95\% of $500,000$ operations are short range queries and the other 5\% are put operations.  The workload is measured after loading 50GB of data (500M write operations). The latency slowdown of \basic\/ over \none\/ is presented in Figure~\ref{fig:scans}. Here we also experiment with different size of the pipeline (parameter $S$). With only one segment in the pipeline ($S=1$) the search for a key is a bit faster, than with long pipeline ($S=5$). We can see that the slowdown for short pipeline is really negligible, up to $3\%$ at the worst case. When pipeline may include up to five segments (as in all other experiments we did) the scans perform little worse and the slowdown for any percentile is between $2\%$ to $8\%$. This resembles the SSD reads slowdown.
+Finally, we study the scans behaviour on SSD with Zipf keys distribution. We chose to exercise  the standard YCSB scans workload (workload $e$), where 95\% of $500\,000$ operations are short range queries (50 entries in expectation), and the other 5\% are put operations.  The workload is measured after loading 50GB of data (500M write operations). The latency slowdown of \basic\/ over \none\/ is presented in Figure~\ref{fig:scans}. Here we also experiment with different size of the pipeline (parameter $S$). With only two segments in the pipeline ($S=2$) the search for a key is a bit faster than with a longer pipeline ($S=5$). We can see that the slowdown for short pipeline is negligible -- up to $3\%$. When the pipeline may grow to five segments (as in the write-only experiments) the performance gap slightly increases to $2\%-8\%$. These results resemble the SSD reads slowdown.
 }
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/scans.pdf}
