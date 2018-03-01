@@ -61,21 +61,31 @@ In managed environments, it can be allocated in off-heap (unmanaged) memory, whi
       \caption[]{Flat segment}
     \label{fig:flattening:flat}
   \end{subfigure}
+  \begin{subfigure}[t]{0.5\columnwidth}
+      \includegraphics[width=\figw]{flat-seg.pdf}
+      \caption[]{Merged segment}
+    \label{fig:flattening:merge}
+  \end{subfigure}
+  \begin{subfigure}[t]{0.5\columnwidth}
+      \includegraphics[width=\figw]{flat-seg.pdf}
+      \caption[]{Compacted segment}
+    \label{fig:flattening:compaction}
+  \end{subfigure}
 
-\caption{The process of flattening an active segment with skiplist index into a flat segment with ordered array index. The data remains untouched.} 
+\caption{The active segment has a skiplist index. After a segment is added to the pipeline its index is flattened into an ordered array index. When the pipeline consists of $S$ segments in the pipeline they are either merged or compacted. During a flattening and merge processes  he data remains untouched. During a compaction indices are merged and redundancies in the data are eliminated.} 
 \label{fig:flattening}
 \end{figure*}
 
 Once the number of immutable segments exceeds $S$, the segments in the pipeline are processed to reduce their number.
 At a minimum, an \emph{in-memory merge} replaces the indices of multiple segments by a single index covering data that was 
 indexed by all original segments,  
-\inred{as shown in Figure~\ref{fig:flattening}(c)}. 
+as shown in Figure~\ref{fig:flattening:merge}. 
 This is a lightweight process that results in a single segment but does not eliminate redundant data versions.
 For example, if a cell with the same row key and column key is stored in two different segments in the pipeline (with two different timestamps) then after the merge both cells will appear consecutively in the merged segment. 
 
 Optionally, an \emph{in-memory compaction} can further perform \emph{redundant data elimination} by
 creating a single flat index with no redundancies and disposing redundant data cells,  
-\inred{as shown in Figure~\ref{fig:flattening}(d)}.  
+as shown in Figure~\ref{fig:flattening:compaction}.  
 In the example above only the more recent cell will appear in the compacted segment.
 In case the memory store manages its cell data storage internally (via MSLAB), the surviving cells are relocated
 to a new chunk (to avoid internal chunk fragmentation). Otherwise, the redundant cells are simply de-referenced, allowing the garbage-collector to reclaim them.    
