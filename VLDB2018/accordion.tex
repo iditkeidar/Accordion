@@ -72,7 +72,7 @@ In managed environments, it can be allocated in off-heap (unmanaged) memory, whi
     \label{fig:flattening:compaction}
   \end{subfigure}
 
-\caption{The active segment has a skiplist index. After a segment is added to the pipeline its index is flattened into an ordered array index. When the pipeline consists of $S$ segments in the pipeline they are either merged or compacted. During a flattening and merge processes the data remains untouched. During a compaction indices are merged and redundancies in the data are eliminated. The key $K$ was updated twice on timestamp $ts=1$ and later on timestamp $ts=2$, only on compacted segment we see redundant version ($ts=1$) eliminated.} 
+\caption{The active segment has a skiplist index. After a segment is added to the pipeline its index is flattened into an ordered array index. When the pipeline consists of $S$ segments, they are either merged or compacted. During a flattening or merge processes the data remains untouched. During a compaction indices are merged and redundancies in the data are eliminated. The key $K$ was updated twice on timestamp $ts=1$ and later on timestamp $ts=2$. Only in compacted segment the redundant version ($ts=1$) is eliminated.} 
 \label{fig:flattening}
 \end{figure*}
 
