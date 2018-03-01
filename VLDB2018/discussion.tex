@@ -33,7 +33,15 @@ an estimate of the expected yield.
 While \adp\ does not improve performance compared to the  \basic\ policy, which merges only indices and not data,
 it does reduce the write volume, which is particularly important for longevity of SSD drives.
 
-\mypara{Deployment Recommendations} Following the set of experiments we ran these are our bottom line recommendations for policies and settings configurations.
-When running without mslabs the general guidance would be to use \adp (with flat index). For a skewed workload use $A=0.02$ and $u=0.2$. If the workload is write-intensive then use $S=5$, if the workload is read-oriented or even read-only $S=2$ is better. If the workload is more uniformly distributed or if write throughput is more crucial than write amplification then increase the value $u$ up to $0.5$ or even higher to match the throughput of \basic. 
-Among all write-only experiments the one yielding the highest throughput was running without mslabs.
-When the application is running with mslabs (either on-heap or off-heap) it is advised to use the serialized index with $A=0.1$. We note that most of the recommendations here are set as default values in the coming HBase 2.0 release.
+\mypara{Deployment recommendations} Following the set of experiments we ran, we can glean some recommendations 
+for selecting policies and parameter values.
+The recommended compaction policy is \adp, which offers the best performance vs disk-wear tradeoff.
+When running without MSLAB (i.e., with a flat index), 
+an active segment size of $A=0.02$ offered the best performance in all settings we experimented with, though bigger values of $A$ might be most appropriate in settings with big values (and hence lower meta-data-to-data ratios). 
+When using MSLAB allocation, it is wasteful to use such a small active segment, because an entire chunk is allocated to it, and 
+so we recommend using $A=0.1$.
+Assuming the workload is skewed (as production workloads usually are), we recommend using a fairly aggressive compaction threshold $R=0.2$. If the workload is more uniformly distributed or if write throughput is more crucial than write amplification, then one can increase the value $R$ up to $0.5$ or even higher to match the throughput of \basic. 
+The pipeline size $S$ induces a tradeoff between read and write performance.
+If the workload is write-intensive then we recommend using $S=5$, and if the workload is read-oriented  $S=2$ is better.
+%Among all write-only experiments the one yielding the highest throughput was running without mslabs.
+We note that most of the recommendations here are set as default values in the coming HBase 2.0 release.
