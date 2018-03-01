@@ -1,10 +1,10 @@
-\inpurple{The basis for LSM data structures is the \emph{logarithmic
+The basis for LSM data structures is the \emph{logarithmic
 method} \cite{Bentley79}.
 It was initially
 proposed as a way to efficiently transform static search structures into dynamic ones.
 This method inspired the original work on
 \emph{LSM-trees}~\cite{O'Neil1996} and its variant for multi-versioned
-data stores~\cite{Muth1998}.}
+data stores~\cite{Muth1998}.
 
 
 
@@ -28,8 +28,8 @@ cLSM~\cite{clsm} focused on scaling LSM stores on multi-core hardware by adding 
 \sys, on the other hand, is based on HBase, which already uses a concurrent in-memory skiplist; improving concurrency
 in the line of cLSM is orthogonal to our contribution.  
 
-\inpurple{Facebook's RocksDB~\cite{rocksdb} is the state-of-the-art implementation of a key-value store.
-All writes to RocksDB are first inserted into an in-memory active segment (called memtable). Once the active segment is full, a new one is created and the old one immutable. At any point in time there is exactly one active segment and zero or more immutable segments~\cite{rocksdbtuning}. Unlike \sys\ the indices of immutable segments are not flattened or merged, and the content of the segment is only compacted upon flush to disk.}
+Facebook's RocksDB~\cite{rocksdb} is the state-of-the-art implementation of a key-value store.
+All writes to RocksDB are first inserted into an in-memory active segment (called memtable). Once the active segment is full, a new one is created and the old one immutable. At any point in time there is exactly one active segment and zero or more immutable segments~\cite{rocksdbtuning}. Unlike \sys\ the indices of immutable segments are not flattened or merged, and the content of the segment is only compacted upon flush to disk.
 
 Similarly to us, the authors of FloDB~\cite{flodb} also observed that using large skiplists is detrimental to 
 LSM store performance, and so FloDB also partitions the memory component. However, rather than using 
