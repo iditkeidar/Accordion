@@ -2,7 +2,7 @@
 We describe  \sys's architecture and basic operation in Section~\ref{ssec:overview}.
 We then discuss in-memory compaction policies  in  Section~\ref{ssec:policies}
 and implementation details and thread synchronization in Section~\ref{ssec:impl-details}.
-Section~\ref{ssec:offheap} discusses the adaptation of the segments index layout for off-heap allocation.
+Section~\ref{ssec:offheap} discusses the   index layout in off-heap allocation.
 
 
 \subsection{Overview} \label{ssec:overview}
@@ -39,14 +39,14 @@ e.g., $0.02 \leq A \leq 0.05$, and $2 \leq S \leq 5$.
 Once the active segment grows to its size bound (a fraction $A$ of the memory store's size bound), an \emph{in-memory flush} is invoked.
 The in-memory flush makes the active segment immutable and creates a new active segment to replace it. 
 
-In case there is available space in the pipeline (the number of pipeline segments is smaller than $S$), the replaced active segment is simply added to the pipeline then it is
-\emph{flattened} and the memory flush takes no further actions. Flattening a segment involves replacing the dynamic segment index (e.g., skiplist) by a compact ordered array, 
-which is suitable for immutable data and supports fast lookup via binary search (as in Figure~\ref{fig:flattening}). 
+In case there is available space in the pipeline (the number of pipeline segments is smaller than $S$), the replaced active segment is simply \emph{flattened}  and 
+added to the pipeline. Flattening a segment involves replacing the dynamic segment index (e.g., skiplist) by a compact ordered array suitable for immutable data, as shown in Figure~\ref{fig:flattening}.
 The indexed data cells are unaffected by the index flattening.
-A flat index reduces the MemStore's memory footprint, which delays  disk flushes, positively affecting both read latency  (by increasing the MemStore's hit rate) and write volume.
-  An additional advantage of the flat layout  is that in managed environments, 
- the index can be allocated in off-heap (unmanaged) memory, which can improve performance predictability 
- through reduced garbage collection jitter~\cite{alibabahbase}; this approach is  discussed in Section~\ref{ssec:offheap} below.
+
+The flat index is more compact than a skiplist, and so reduces the MemStore's memory footprint, which delays  disk flushes, positively affecting both read latency  (by increasing the MemStore's hit rate) and write volume.
+It is also cache- and GC-friendly,  and supports fast lookup via binary search. 
+In managed environments, it can be allocated in off-heap (unmanaged) memory, which can improve performance predictability as  discussed in Section~\ref{ssec:offheap} below.
+
 \begin{figure*}[tb]
 
   \centering
@@ -68,22 +68,26 @@ A flat index reduces the MemStore's memory footprint, which delays  disk flushes
 
 Once the number of immutable segments exceeds $S$, the segments in the pipeline are processed to reduce their number.
 At a minimum, an \emph{in-memory merge} replaces the indices of multiple segments by a single index covering data that was 
-indexed by all original segments. This is a lightweight process that results in a single segment but does not eliminate redundant data versions.
+indexed by all original segments,  
+\inred{as shown in Figure~\ref{fig:flattening}(c)}. 
+This is a lightweight process that results in a single segment but does not eliminate redundant data versions.
 For example, if a cell with the same row key and column key is stored in two different segments in the pipeline (with two different timestamps) then after the merge both cells will appear consecutively in the merged segment. 
 
 Optionally, an \emph{in-memory compaction} can further perform \emph{redundant data elimination} by
-creating a single flat index with no redundancies and disposing redundant data cells. In the example above only the more recent cell will appear in the compacted segment.
+creating a single flat index with no redundancies and disposing redundant data cells,  
+\inred{as shown in Figure~\ref{fig:flattening}(d)}.  
+In the example above only the more recent cell will appear in the compacted segment.
 In case the memory store manages its cell data storage internally (via MSLAB), the surviving cells are relocated
 to a new chunk (to avoid internal chunk fragmentation). Otherwise, the redundant cells are simply de-referenced, allowing the garbage-collector to reclaim them.    
 %
-The choice whether to eliminate redundant data (compaction) or not (only merge) is guided by the policies described in Section~\ref{ssec:policies} below.
+The choice whether to eliminate redundant data (i.e., perform compaction) or not (perform only merge) is guided by the policies described in Section~\ref{ssec:policies} below.
 
 Flushes to disk work the same way as in a standard LSM store: A disk flush first shifts all pipeline segments to the snapshot, which is not part of the pipeline, while the pipeline is emptied so that
 it may absorb new flat segments. 
 A background flush process merges all snapshot segments while eliminating  redundancies, and streams the result to a new file. 
 After the file is written, the snapshot segments are freed. 
 
-In case the disk flush process empties the pipeline while an in-memory compaction  is attempting to merge some segments, the latter aborts.  This behaviour is valid since in-memory compactions are an optimization.
+In case the disk flush process empties the pipeline while an in-memory compaction  is attempting to merge some segments, the latter aborts.  This behavior is valid since in-memory compactions are an optimization.
 
 \subsection{Compaction Policies} \label{ssec:policies}
 
@@ -146,31 +150,39 @@ compactions become more important because the component is bigger and more space
 
 A compacting memstore is comprised of an active segment and a double-ended queue (pipeline) of inactive segments. 
 The pipeline is accessed by read APIs (get and scan), as well as by background disk flushes and in-memory compactions. 
-The latter two modify the pipeline by adding/removing/replacing segments. These modifications happen infrequently. 
+The latter two modify the pipeline by adding, removing, or replacing segments. These modifications happen infrequently.     
 
-The pipeline's readers and writers coordinate through lightweight copy-on-write, as follows. The pipeline object is versioned. 
-Each modification promotes the version number, and atomically swaps the global reference to the new version clone. Note
-that cloning is inexpensive -- only the segment references are copied since the segments themselves are immutable. 
+The pipeline's readers and writers coordinate through a lightweight copy-on-write, as follows.
+The pipeline object is versioned, and updates increase the version.
 
-The reads access the segments lock-free, through the version obtained at the beginning of the operation. 
+Reads access the segments lock-free, through the version obtained at the beginning of the operation. 
 If an in-memory flush is scheduled in the middle of a read, the active segment may migrate into the pipeline. 
 Likewise, if a disk flush is scheduled in the middle of a read, a segment may migrate from the pipeline to the pre-flush snapshot buffer. 
 The correctness of reads  is guaranteed by first taking the reference of the active segment then the pipeline segments and finally the snapshot segments. This way, a segment may be encountered twice but no data is 
 lost. The scan algorithm filters out the duplicates. 
 
+Each modification takes the following steps:
+(1) promotes the version number;
+(2) clones the pipeline, which is a small set of pointers, 
+(3) performs the update on the cloned version, and
+(4) uses a compare-and-swap (CAS) operation to
+atomically swap the global reference to the new pipeline clone, provided that its  version did not change since (1).
+Note that cloning is inexpensive -- only the segment references are copied since the segments themselves are immutable. 
+\remove{
 In-memory compaction is a read-modify-write operation, which swaps one or more segments in the pipeline 
 with a new segment built from their data. This operation's atomicity is guaranteed by a compare-and-swap (CAS) operation
-that flips the pipeline version only if the latter did not change since the compaction started.  For example, in-memory
+that flips the pipeline version only if the latter did not change since the compaction started. 
+}
+For example, in-memory
 compaction fails if a disk flush concurrently removes some segments from the pipeline.
 % (Section~\ref{ssec:overview}). 
 
 
 \subsection{Off-Heap  Allocation} \label{ssec:offheap}
-As explained above, prior to \sys, HBase allocated its MemStore indicies on-heap, using a standard Java skiplist for the active buffer and the snapshot. \sys\ continues to use the same data structure -- skiplist for the active segment, but adopts arrays for the flat segments and snapshot. 
-Each active or flat segment's index holds a reference to a \emph{cell} object, which holds a reference to a buffer holding a key-value pair,
-as illustrated in Figure~\ref{fig:on-heap}. 
-Also as explained above, the cell object is used for internal HBase scan APIs, and can reference data in two different formats: either a standard Java object
-called \emph{pojo} -- Pure Old Java Object -- or an address in an MSLAB chunk. HBase MSLAB, specifically the chunks, may be allocated off-heap. 
+As explained above, prior to \sys, HBase allocated its MemStore indicies on-heap, using a standard Java skiplist for the active buffer and the snapshot. \sys\ continues to use the same data structure -- skiplist -- for the active segment, but adopts arrays for the flat segments and snapshot. 
+Each entry in an active or flat segment's index holds a reference to a cell object, which holds a reference to a buffer holding a key-value pair (as pojo or in MSLAB),
+as illustrated in Figure~\ref{fig:on-heap:flat}. 
+HBase MSLAB chunks may be allocated off-heap. 
 
 \begin{figure*}[tb]
 
@@ -192,10 +204,18 @@ called \emph{pojo} -- Pure Old Java Object -- or an address in an MSLAB chunk. H
 \end{figure*}
 
 
-\sys's serialized version takes this approach one step further. If the data is allocated using MSLAB, \sys\/ allocates the index of the flat segments on an MSLAB chunk as well. Such a segment (denoted \emph{serialized segment}) has its index and data allocated via same MSLAB object, but on different chunks. The MSLAB object belongs to a MemStore and produces either only on-heap or only off-heap chunks. Serialized segment forgoes the intermediate cell
-objects, and has the array entries point directly to the the chunks holding keys and values, as illustrated in Figure~\ref{fig:on-heap}.  
+\sys's \emph{serialized} version takes this approach one step further, and allocates the flat segment index
+using MSLAB as well as the data. 
+A serialized segment has its index and data allocated via the same MSLAB object, but on different chunks. 
+Each MSLAB may reside either on- or off-heap.
+
+Serialized segments forgo the intermediate cell
+objects, and have array entries point directly to the the chunks holding keys and values, as illustrated in 
+Figure~\ref{fig:on-heap:ser}.  
 Removing the cell objects yields
-a substantial space reduction, especially when data items are small, and elimination the intermediate level of indirection. Offloading the data from the Java heap
+a substantial space reduction, especially when data items are small, and eliminates the intermediate level of indirection.
+ 
+Offloading  data from the Java heap 
 has been shown to be effective for read traffic~\cite{alibabahbase}. However, it necessitates recreating temporary
 cell objects to support HBase's internal scan APIs. Nevertheless, such temporary objects consume  a small amount of space on-demand, 
 and these objects are  deallocated rapidly, making them easier for the GC process to handle.
