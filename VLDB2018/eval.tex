@@ -243,7 +243,7 @@ The graph shows a clear negative correlation between the two metrics.
 We also experiment with the write-only workload using serialized segments, whose indices are allocated on  MSLAB chunks
 (as described in Section~\ref{ssec:offheap}). We compare them to un-serialized flat segments, to which we refer here 
 shortly as \emph{flat}.
-We concentrate on the Zipf key distribution and  SSD hardware. We run two sets of experiments: in the first  all MSLAB chunks are allocated on-heap, and in the second --  off-heap. Figure~\ref{fig:write_only_off_heap} presents the throughput speedup using flat and serialized 
+We concentrate on the Zipf key distribution and  SSD hardware. We run two sets of experiments: in the first  all MSLAB chunks are allocated on-heap, and in the second --  off-heap. For the serialized segments we set parameter $A$ to $0.1$, for less frequent in-memory flushes. Figure~\ref{fig:write_only_off_heap} presents the throughput speedup using flat and serialized 
 segments with the \basic\/ policy over \none. For the flat \basic, the speedup is $27\%$ on-heap and $29\%$ off-heap. For the serialized \basic, the speedup is $33\%$ on-heap and $44\%$ off-heap. The gain from the serialized \basic\/ is larger for the off-heap case, because when 
 the index is taken off-heap the JVM GC has less work to do. 
 

@@ -224,7 +224,7 @@ HBase MSLAB chunks may be allocated off-heap.
 \sys's \emph{serialized} version takes this approach one step further, and allocates the flat segment index
 using MSLAB as well as the data. 
 A serialized segment has its index and data allocated via the same MSLAB object, but on different chunks. 
-Each MSLAB may reside either on- or off-heap.
+Each MSLAB may reside either on- or off-heap. The frequent in-memory flushes are less suitable for serialized segments, because upon each in-memory flush the new serialized segment and thus new index chunk is allocated. When the index is not big enough to populate the chunk, the chunk is underutilized.
 
 Serialized segments forgo the intermediate cell
 objects, and have array entries point directly to the the chunks holding keys and values, as illustrated in 
