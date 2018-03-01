@@ -1,12 +1,10 @@
 \documentclass{vldb}
-%\documentclass[letterpaper,twocolumn,10pt]{article}
-%\usepackage{times}
-\usepackage{epsfig,endnotes}
 
 %========================
 %  Packages
 %========================
 
+\usepackage{epsfig,endnotes}
 \usepackage{graphicx,url,color}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -15,14 +13,12 @@
 %\usepackage[tight,footnotesize]{subfigure}
 \usepackage{algorithm}
 \usepackage[noend]{algpseudocode}
-\usepackage{times}
 
 %\usepackage{todonotes}
 %\usepackage[normalem]{ulem} %strikethrough: \sout{Hello World}
 %\usepackage{lastpage} %for number of pages
 %\usepackage{xspace}
 %\usepackage{multirow}
-%\usepackage{balance}
 
 \usepackage[colorlinks=true,allcolors=blue,breaklinks]{hyperref}   % hyperlinks, including DOIs and URLs in bibliography
 \usepackage{subcaption}
@@ -57,22 +53,44 @@
 \newcommand{\tuple}[1]{\ensuremath{\langle \mbox{#1} \rangle}}
 \newcommand{\mypara}[1]{ \vspace{8pt} \noindent{\bf #1}\hspace{6pt}}
 
+\usepackage{balance}  % for  \balance command ON LAST PAGE  (only there!)
+
+% Include information below and uncomment for camera ready
+%\vldbTitle{\sys: Better Memory Organization for LSM Key-Value Stores}
+%\vldbAuthors{Bortnikov, Braginsky, Hillel, Keidar, and Sheffi}
+%\vldbDOI{https://doi.org/TBD}
+
+
 %========================
 \begin{document}
 
 \date{}
 
-\title{\Large \bf  \sys: Boosting Key-Value Stores by Replaying LSM in Memory}
+\title{\sys: Better Memory Organization\\ for LSM Key-Value Stores}
 
-
+\numberofauthors{5} 
 \author{
-%\remove{
-Edward Bortnikov\footnotemark[1]  \tb
-Anastasia Braginsky\footnotemark[1]  \tb
-Eshcar Hillel\footnotemark[1] \tb 
-Idit Keidar\footnotemark[1] \footnotemark[2] \tb
-Gali Sheffi\footnotemark[1] \\
-	\footnotemark[1] Yahoo Research\ \ \footnotemark[2] Technion  \\ [2mm]
+\alignauthor
+Edward Bortnikov\\
+       \affaddr{Yahoo Research}
+       \email{}
+\alignauthor       
+Anastasia Braginsky\\
+       \affaddr{Yahoo Research}
+       \email{}
+\alignauthor
+Eshcar Hillel\\
+       \affaddr{Yahoo Research}
+       \email{}
+       \and
+\alignauthor
+Idit Keidar\\
+       \affaddr{Technion and Yahoo Research}
+       \email{}       
+\alignauthor
+Gali Sheffi\\
+       \affaddr{Yahoo Research}
+       \email{}
 %\small Submission Type: Research	
 %}
 %Deployed-system paper
@@ -88,15 +106,19 @@ Gali Sheffi\footnotemark[1] \\
 
 \subsection*{Abstract}
 
-Log-structured merge (LSM) stores have emerged as the technology of choice for building scalable 
+\emph{
+Log-structured merge (LSM)} stores have emerged as the technology of choice for building scalable 
 write-intensive key-value storage systems. An LSM store replaces random I/O with sequential 
 I/O by accumulating large batches of writes in a \emph{memory store} prior to flushing them to log-structured 
 disk storage; the latter is continuously re-organized in the background through a \emph{compaction}
 process for efficiency of reads. Though inherent to the LSM design, frequent compactions are a major pain point 
 because they slow down data store operations, primarily writes, and also increase disk wear. 
-Another inherent problem is the fragmented memory layout caused due to the dynamic nature of the memory store, in particular in managed languages like Java. 
+Another performance bottleneck in today's state-of-the-art LSM stores, in particular ones that use
+managed languages like Java,  is the 
+fragmented memory layout of their dynamic memory store.
 
-We argue that these pain points may be mitigated via better  organization of the memory store.
+In this paper we show 
+that these pain points may be mitigated via better  organization of the memory store.
 We present \sys\ -- an algorithm that addresses these problems by re-applying
 the LSM design principles to memory management. 
 \sys\ is implemented in the production code of Apache HBase, where it became the default deployment option 
@@ -115,11 +137,6 @@ the baseline HBase implementation and discuss some unexpected lessons learned in
 \input{accordion} 
 
 \section{Performance Study} \label{sec:eval}
-\inred{[[To do: 
-add small YCSB microbenchmarks before big benchmarks (note - setup section does not apply); 
-add off-heap experiments; 
-change ``none'' label to NoCompaction.
-]]}
 
 \input{eval}
 
@@ -130,12 +147,11 @@ change ``none'' label to NoCompaction.
 \input{discussion}
 
 \subsection*{Acknowledgments}
-\inred{
-%Need to thank some people in the HBase community.
-We would like to thank the members of the HBase community for many helpful discussions during the development of the \sys\ project. In particular, we would like to thank Michael Stack, Ramakrishna Vasudevan, Anoop Sam John, Duo Zhang, Chia-Ping Tsai, and Ted Yu}
-%Omitted for blind review.
 
-\newpage
+%Need to thank some people in the HBase community.
+We are thankful to the members of the HBase community for many helpful discussions during the development of the \sys\ project. In particular, we would like to thank Michael Stack, Ramakrishna Vasudevan, Anoop Sam John, Duo Zhang, Chia-Ping Tsai, and Ted Yu.
+
+% \newpage
 
 \bibliographystyle{acm}
 
