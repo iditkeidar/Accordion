@@ -69,6 +69,10 @@ While in write-only workloads we measure performance throughout the experiment,
 we precede each mixed-workload experiment (read/write or scan/write) with a write-only
 load phase that populates the table; performance of the load-phase is not reported.
 
+We repeated each experiment (with a particular workload, particular hardware, and 
+particular parameter settings) a handful 
+of times (usually five) to verify that the results are not spurious. The median result is reported. 
+
 \subsection{Evaluation Results}
 \label{ssec:results}
 
@@ -87,16 +91,16 @@ Section~\ref{ssec:tuning} presents our parameter exploration.
 Our first benchmark set exercises only put operations. It starts from an empty table and performs 500M puts, 
 in parallel from 12 client threads. We study the Zipf and  uniform key distributions. The experiments measure
 write throughput (latency is not meaningful because puts are batched), as well as disk I/O and GC metrics. 
-Every data point is the median among five runs. 
+%Every data point is the median among five runs. 
 
 \mypara{Write throughput} 
 Figure~\ref{fig:write-throughput} depicts the performance speedup of  \basic\ and \adp\ over
 \none. Table~\ref{tab:write-throughput} provides the absolute throughput numbers. 
 For the Zipf benchmark, the maximal speedup is $47.6\%$ on SSD and $25.4\%$ on HDD. For the uniform benchmark, 
-which has neither redundancy not locality, they are $23.8\%$ and $8.9\%$, respectively. 
+which has neither redundancy nor locality, they are $23.8\%$ and $8.9\%$, respectively. 
 The gain is significantly larger for the system with SSD storage, 
 which is much faster on the I/O side. Being more CPU-bound than I/O-bound, its write throughput is more dependent on 
-the MemStore speed than on background writes to the filesystem.  
+the MemStore speed than on background writes to the file system.  
 
 \begin{table*}
   \centering
@@ -193,16 +197,13 @@ because it is workload-driven and selective about the regions in which it perfor
 
 
 
-Note that \adp\/ is only marginally slower than \basic\/ ($3$\% to $7$\% throughput for the Zipf 
+Note that \adp\/ is only marginally slower than \basic's ($3$\% to $7$\% throughput for the Zipf 
 distribution on SSD, immaterial in other cases).  In what follows, we substantiate  its savings 
 on the I/O side. Going forward, we focus on the more realistic Zipf workload.
 %, and  forgo the \eager\/ heuristic. 
 
 \mypara{I/O metrics}
-
-
-
-With respect to disk use by flushes and compactions, the picture is reversed. In this regard, 
+With respect to write amplification, the picture is reversed. In this regard, 
 \basic\/ provides modest savings. It writes $13$\% less bytes than \none\/ on SSD, and $8$\% 
 on HDD. In contrast, \adp\ slashes the number of flushes and compactions by $58\%$ and $61$\%, 
 respectively, and the number of bytes written by almost $30\%$. As expected, the lower the 
@@ -212,24 +213,25 @@ the higher the savings. Figure~\ref{fig:volume} and Table~\ref{tab:counters} sum
 Note that the amount of data written to WAL %,186GB 
 (approximately $45$\% of the write volume) remains constant across all  experiments. 
 HBase operators often choose placing log files on inexpensive hard disks, since they are only needed for recovery,
-and so disk wear is not a major concern for WAL data.
+and in this case disk wear is not a major concern for WAL data.
 
 All-in-all, there is a tradeoff between the write throughput and storage utilization 
 provided by the different \sys\/ policies. \adp\/ provides multiple operating points that trade major 
 storage savings for minor performance losses.
 
 \mypara{Garbage collection}
- Redundancy elimination proved to be less impactful 
+We saw above that 
+redundancy elimination proved to be less impactful 
 than memory management overhead, especially in systems with fast SSD hardware. 
 Figure~\ref{fig:gc-throughput-log2}, which studies GC overhead for a range of policies and tuning 
-parameters, further corroborates this hypothesis. It shows a clear negative correlation between the 
+parameters, further corroborates this observation. It shows a clear negative correlation between the 
 GC time and the write throughput. 
 Note that this does not necessarily mean that GC time is the only reason for performance reduction. Rather,
 GC cycles may be correlated with other costs, e.g., memory fragmentation, which reduces locality.
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/gc-throughput-log2.png}
-\caption{GC time (cumulative, per minute) vs write throughput, measured on SSD machines 
+\caption{Cumulative GC time vs write throughput, measured on SSD machines 
 for multiple \sys\/ policies and configurations, for the Zipf  key distribution. Each data point 
 depicts the throughput vs GC time of one experiment. Both axes are in log-log scale.  
 The graph shows a clear negative correlation between the two metrics. 
@@ -237,23 +239,27 @@ The graph shows a clear negative correlation between the two metrics.
 \label{fig:gc-throughput-log2}
 \end{figure}
 
-\inpurple{
-\mypara{Basic Serialized}
-We also experiment with the write-only workload on the serialized segments, where the index is allocated on the MSLAB chunk (Section~\ref{ssec:offheap}). We concentrate on the Zipf key distribution and the SSD hardware. Here memory is managed using MSLAB memory allocation. We run two sets of experiments: in the first set all MSLAB chunks are allocated on-heap and in the second set  all MSLAB chunks are allocated off-heap. Recall that in the serialized flavour of \basic\/ the serialized index itself is also allocated on a chunk . Figure~\ref{fig:write_only_off_heap} presents the throughput speedup of the flat and serialized flavours of \basic\/ policy over \none. For the flat \basic, the speedup is $27\%$ on-heap and $29\%$ off-heap. For the serialized \basic, the speedup is $33\%$ on-heap and $44\%$ off-heap. The gain from the serialized \basic\/ is larger for the off-heap case, because when index is taken off-heap even less work is left to JVM GC. 
+\mypara{Serialized and off-heap segments}
+We also experiment with the write-only workload using serialized segments, whose indices are allocated on  MSLAB chunks
+(as described in Section~\ref{ssec:offheap}). We compare them to un-serialized flat segments, to which we refer here 
+shortly as \emph{flat}.
+We concentrate on the Zipf key distribution and  SSD hardware. We run two sets of experiments: in the first  all MSLAB chunks are allocated on-heap, and in the second --  off-heap. For the serialized segments we set parameter $A$ to $0.1$, for less frequent in-memory flushes. Figure~\ref{fig:write_only_off_heap} presents the throughput speedup using flat and serialized 
+segments with the \basic\/ policy over \none. For the flat \basic, the speedup is $27\%$ on-heap and $29\%$ off-heap. For the serialized \basic, the speedup is $33\%$ on-heap and $44\%$ off-heap. The gain from the serialized \basic\/ is larger for the off-heap case, because when 
+the index is taken off-heap the JVM GC has less work to do. 
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/write-only-off-heap.pdf}
-\caption{Throughput Speedup when using flat and serialized segments allocated on mslab (off-heap and on-heap).
+\caption{Throughput speedup when using flat (un-serialized) and serialized segments allocated on MSLAB, off-heap and on-heap.
 }
 \label{fig:write_only_off_heap}
 \end{figure}
-}
+
 
 \subsubsection{Read-Write Workload}
 
 Our second benchmark studies read latencies under heavy write traffic. 
 We run batched puts from 10 client threads and single-key gets from two other threads. 
-The keys of all operations are distributed identically (Zipf). The workload is measured after loading 30GB of data (300M write operations) to make sure most if not all keys have some version of the data on disk. We measure the $50$th, 
+The keys of all operations are distributed Zipf. The workload is measured after loading 30GB of data (300M write operations) to make sure most if not all keys have some version on disk. We measure the $50$th, 
 $75$th, $90$th, $95$th and $99$th get latency percentiles. Figure~\ref{fig:latency} 
 depicts the relative latency slowdown of \basic\/ and \adp\/ ($R=0.2$) versus \none.
 %(values greater than 1 mean slowdown). 
@@ -283,19 +289,19 @@ The HDD systems enjoy a dramatic reduction in tail latencies ($15$\% to $40$\% f
 We explain this as follows. The tail latencies are cache misses that are served from disk. 
 The latter are most painful with HDDs. Thanks to in-memory compaction, \adp\/ prolongs 
 the lifetime of data in MemStore. Therefore, more results are served from MemStore, i.e., 
-there are less attempts to read from cache, and consequently from disk, in case of a cache miss.  
+there are less attempts to read from cache, and consequently also from disk.  
 
 In SSD systems, the get latencies are marginally slower in all percentiles (e.g., the 
 $95$th percentile is $2.13$ms in \none\/ versus $2.26$ms in \adp). This happens
 because most reads are dominated by in-memory search speed, which depends on the 
-number of segments in the MemStore pipeline (in our experiment, 5). The other factor
+number of segments in the MemStore pipeline, which was set to 5 in this experiment. 
+The other factor
 is increased GC overhead in \adp\/ that stems from redundancy elimination. 
 
 
-\inpurple{
 \subsubsection{Scan-Write Workload}
-Finally, we study the scans behaviour on SSD with Zipf keys distribution. We chose to exercise  the standard YCSB scans workload (workload $e$), where 95\% of $500\,000$ operations are short range queries (50 entries in expectation), and the other 5\% are put operations.  The workload is measured after loading 50GB of data (500M write operations). The latency slowdown of \basic\/ over \none\/ is presented in Figure~\ref{fig:scans}. Here we also experiment with different size of the pipeline (parameter $S$). With only two segments in the pipeline ($S=2$) the search for a key is a bit faster than with a longer pipeline ($S=5$). We can see that the slowdown for short pipeline is negligible -- up to $3\%$. When the pipeline may grow to five segments (as in the write-only experiments) the performance gap slightly increases to $2\%-8\%$. These results resemble the SSD reads slowdown.
-}
+Finally, we study  scans  on SSD under Zipf key distribution. We exercise  the standard YCSB scans workload (workload $e$), where 95\% of $500\,,000$ operations are short range queries (50 keys in expectation), and the remaining 5\% are put operations.  The workload is measured after loading 50GB of data (500M write operations). The latency slowdown of \basic\/ over \none\/ is presented in Figure~\ref{fig:scans}. Here we also experiment with different pipeline sizes (parameter $S$). With only two segments in the pipeline ($S=2$) the search for each key is a bit faster than with a longer pipeline ($S=5$). We can see that the slowdown for the short pipeline is negligible -- up to $3\%$. When the pipeline may grow to five segments, the performance gap slightly increases to $2\%-8\%$. These results resemble the SSD reads slowdown.
+
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/scans.pdf}
 \caption{Latency speedup for scans of \basic.
@@ -305,7 +311,7 @@ Finally, we study the scans behaviour on SSD with Zipf keys distribution. We cho
 
 
 
-\subsection{Parameter Tuning} \label{ssec:tuning}
+\subsubsection{Parameter Tuning} \label{ssec:tuning}
 One of the main sources of memory management overhead is the skiplist data structure used to index the active  memory segment.
 Not only  is it bigger in size compared to a flat index, it is also fragmented whereas a static index is stored in a consecutive block of memory. Therefore, flat storage incurs smaller overhead in terms of allocation, GC, and cache misses.
 We first tune the size of this data structure.
@@ -328,12 +334,13 @@ The write throughput is higher for small values of $A$.
 The next parameter is the pipeline size.
 When $A$ is less than $10\%$, it is clear that merging the active segment into the much bigger static data structure
 over and over again can be inefficient, as it creates a new index and releases the old one. 
-The alternative is to batch multiple segments in the pipeline before merging into a single segment. 
-This throttles the index creation rate. On the flip side, the read API's must scan all the segments, 
+The alternative is to batch multiple segments ($S>1$) in the pipeline before merging them into a single segment. 
+This throttles the index creation rate. On the flip side, the read APIs must scan all the segments, 
 which degrades their performance.
 %Hence, we run the same experiments as explained above, varying the limit for the size of pipeline.
 Figure~\ref{fig:pipeline} depicts the write-only throughput results as a function of the number of segments in the pipeline. 
-The peak throughput is achieved with $S=5$ on SSD and $S=4$ on HDD. The affect of the parameter $S$ on the read performance was seen in the scans latency in Figure~\ref{fig:scans}. We learn from there that the gap in scans latency between $S=5$ and $S=1$ is up to $5\%$.
+The peak throughput is achieved with $S=5$ on SSD and $S=4$ on HDD. In Figure~\ref{fig:scans} above, we observed 
+the effect of the parameter $S$ on  read performance -- we saw that the gap in scan latency between $S=5$ and $S=1$ is at most $5\%$.
 
 \begin{figure*}[tb]
 
@@ -355,10 +362,10 @@ The peak throughput is achieved with $S=5$ on SSD and $S=4$ on HDD. The affect o
 \end{figure*}
 
 \mypara{Parameter Tuning for \eager} 
-With the optimal active segment size found for \basic\ ($A=0.02$), \eager\/ performs poorly since compacting the data so frequently is inefficient. 
+With the preferred active segment size chosen for \basic\ ($A=0.02$), \eager\/ performs poorly since compacting the data so frequently is inefficient. 
 Figure~\ref{fig:eager-throughput} shows that when the active segment is much bigger ($A=0.25$), \eager\ performs better, and outperforms the 
-baseline by $20$\%. We also discovered that the write volume for \eager\ is roughly the same in these two settings whereas \basic's write volume 
-increases with $A$.ß (these results are not shown).  
+baseline by $20$\%. We also discovered that the write volume for \eager\ is roughly the same in these two settings, whereas \basic's write volume 
+increases with $A$; (these results are not shown).  
 Since \adp\ is always superior to \eager, we excluded \eager\ from the experiments reported above.  
 
 \begin{figure}[htb]

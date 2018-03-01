@@ -15,7 +15,7 @@ At all times, the most recent segment, called \emph{active}, is mutable;
 it absorbs put operations. The rest of the segments are immutable.  
 %
 In addition to searching data in the disk store, get and scan operations traverse all memory segments,  similarly to a traditional LSM store read from multiple files. 
-Memory segments do not maintain Bloom filters like the HFiles do, however, they maintain other metadata like key ranges and time ranges to eliminate redundant reads. In addition, it is possible to search in multiple memory segments in parallel.
+Memory segments do not maintain Bloom filters like HFiles do, but they maintain other metadata like key ranges and time ranges to eliminate redundant reads. In addition, it is possible to search in multiple memory segments in parallel.
   
 Figure~\ref{fig:accordion} illustrates the \sys\ architecture. It is parameterized by two values:
 \begin{itemize}
@@ -62,17 +62,17 @@ In managed environments, it can be allocated in off-heap (unmanaged) memory, whi
     \label{fig:flattening:flat}
   \end{subfigure}
   \begin{subfigure}[t]{0.5\columnwidth}
-      \includegraphics[width=\figw]{flat-seg.pdf}
+      \includegraphics[width=\figw]{merged-seg.pdf}
       \caption[]{Merged segment}
     \label{fig:flattening:merge}
   \end{subfigure}
   \begin{subfigure}[t]{0.5\columnwidth}
-      \includegraphics[width=\figw]{flat-seg.pdf}
+      \includegraphics[width=\figw]{compacted-seg.pdf}
       \caption[]{Compacted segment}
     \label{fig:flattening:compaction}
   \end{subfigure}
 
-\caption{The active segment has a skiplist index. After a segment is added to the pipeline its index is flattened into an ordered array index. When the pipeline consists of $S$ segments in the pipeline they are either merged or compacted. During a flattening and merge processes  he data remains untouched. During a compaction indices are merged and redundancies in the data are eliminated.} 
+\caption{The active segment has a skiplist index. After a segment is added to the pipeline its index is flattened into an ordered array index. When the pipeline consists of $S$ segments in the pipeline they are either merged or compacted. During a flattening and merge processes the data remains untouched. During a compaction indices are merged and redundancies in the data are eliminated. The key $K$ was updated twice on timestamp $ts=1$ and later on timestamp $ts=2$, only on compacted segment we see redundant version ($ts=1$) eliminated.} 
 \label{fig:flattening}
 \end{figure*}
 
@@ -153,7 +153,15 @@ Over time, $u$ becomes more accurate while $t$ grows.
 threshold $R$. The rationale for doing so is that prediction based on $u$ becomes more accurate with time, hence 
 compactions become more important because the component is bigger and more space can be saved.
 
-\mypara{WAL Truncation.} Since in-memory compaction delays disk flushes, it can cause HLog files (WAL) to become longer and longer, and in some rare cases be unbounded in size. The system protects against such scenario by forcing flush to disk whenever the HLog size exceeds a certain threshold. Even though, it is best to try and keep the HLog files as small as possible without loosing data. The way \sys\ handles this is by maintaining the oldest version number  (smallest timestamp) stored in memory. Obviously this number increases monotonically due to in-memory compactions which are eliminating old versions (and specifically the oldest version). Hence whenever this number increases the WAL can be notified and old log files are collected.
+\mypara{WAL Truncation} Since in-memory compaction delays disk flushes, it can cause HLog files (WAL) to become longer
+%and longer, 
+and in some rare cases even unbounded. 
+Although the system protects against such scenarios by forcing flush to disk whenever the HLog size exceeds a certain threshold,
+this threshold is fairly high, and it is better 
+to try and keep the HLog files as small as possible without losing data. 
+To facilitate effective WAL truncation, \sys\ maintains the oldest version number (smallest timestamp) of any key in the MemStore. 
+This number monotonically increases  due to in-memory compactions, which eliminate old versions (and specifically, the oldest version
+of each key). Whenever this number increases, the WAL is  notified and old log files are collected.
 
 \subsection{Concurrency} \label{ssec:impl-details}
 
@@ -216,7 +224,7 @@ HBase MSLAB chunks may be allocated off-heap.
 \sys's \emph{serialized} version takes this approach one step further, and allocates the flat segment index
 using MSLAB as well as the data. 
 A serialized segment has its index and data allocated via the same MSLAB object, but on different chunks. 
-Each MSLAB may reside either on- or off-heap.
+Each MSLAB may reside either on- or off-heap. The frequent in-memory flushes are less suitable for serialized segments, because upon each in-memory flush the new serialized segment and thus new index chunk is allocated. When the index is not big enough to populate the chunk, the chunk is underutilized.
 
 Serialized segments forgo the intermediate cell
 objects, and have array entries point directly to the the chunks holding keys and values, as illustrated in 
