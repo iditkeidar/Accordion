@@ -106,15 +106,19 @@ Gali Sheffi\\
 
 \subsection*{Abstract}
 
-Log-structured merge (LSM) stores have emerged as the technology of choice for building scalable 
+\emph{
+Log-structured merge (LSM)} stores have emerged as the technology of choice for building scalable 
 write-intensive key-value storage systems. An LSM store replaces random I/O with sequential 
 I/O by accumulating large batches of writes in a \emph{memory store} prior to flushing them to log-structured 
 disk storage; the latter is continuously re-organized in the background through a \emph{compaction}
 process for efficiency of reads. Though inherent to the LSM design, frequent compactions are a major pain point 
 because they slow down data store operations, primarily writes, and also increase disk wear. 
-Another inherent problem is the fragmented memory layout caused due to the dynamic nature of the memory store, in particular in managed languages like Java. 
+Another performance bottleneck in today's state-of-the-art LSM stores, in particular ones that use
+managed languages like Java,  is the 
+fragmented memory layout of their dynamic memory store.
 
-We argue that these pain points may be mitigated via better  organization of the memory store.
+In this paper we show 
+that these pain points may be mitigated via better  organization of the memory store.
 We present \sys\ -- an algorithm that addresses these problems by re-applying
 the LSM design principles to memory management. 
 \sys\ is implemented in the production code of Apache HBase, where it became the default deployment option 
