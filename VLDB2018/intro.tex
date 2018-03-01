@@ -51,9 +51,9 @@ However, state-of-the-art memory stores are organized as dynamic data structures
 small objects, which becomes inefficient in terms of both cache performance and 
 \emph{garbage collection (GC)} overhead when the memory store size increases.
 %
-This causes significant problems in managed-language stores; for example, Cassandra~\cite{cassandra} has implemented an off-heap variant to avoid these concerns~\cite{cassandraoffheap}, 
-and HBase~\cite{hbase} takes measures to reduce 
-unpredictable GC pauses~\cite{hbasemslab}.  
+This has been reported to cause significant problems,  which developers 
+  of managed stores like Cassandra~\cite{cassandra} and HBase~\cite{hbase}  have 
+had to cope with~\cite{cassandraoffheap,hbasemslab}.  
 Note that the impact of GC pauses is aggravated when timeouts are used to detect faulty storage nodes and initiate fail-over.
 
 

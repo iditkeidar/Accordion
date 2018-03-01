@@ -98,29 +98,31 @@ uses a large RAM cache for popular HFile blocks (by default $40\%$ of the heap).
 
 \mypara{Memory organization}
 The MemStore's active buffer is traditionally implemented as a dynamic index over a collection of cells.  
-For index, the HBase implementation uses the standard Java concurrent skiplist map~\cite{javaskiplist}.
+For the index,  HBase  uses the standard Java concurrent skiplist map~\cite{javaskiplist}.
 Data is multi-versioned -- every put creates a new immutable version of the row it is applied to, 
-consisting of one or more cells. Memory for data can be allocated in two ways as explained later.
+consisting of one or more cells. Memory for data cells is allocated in one of two ways as explained below.
 
-This implementation suffers from two drawbacks. First, the use of a big dynamic data structure entails 
-the abundance of auxiliary small objects and references, which inflate the in-memory index and induce 
+This implementation suffers from two drawbacks. First, the use of a big dynamic data structure leads to 
+an abundance of  small objects and references, which inflate the in-memory index and induce 
 a high GC cost. The overhead is most significant when the managed objects are small, i.e., 
 the metadata-to-data ratio is big~\cite{Wu2015}. Second, the versioning mechanism 
 makes no attempt to eliminate redundancies prior to flush, i.e., the MemStore size  steadily grows, 
 independently of the workload. This is especially wasteful for heavy-tailed (e.g., power law) key access distributions, 
 which are prevalent in production workloads~\cite{Devineni:2015}. 
 
-The \sys\/ algorithm takes care of precisely these problems, to boost  
-LSM store performance and reduce  storage wear-out. Section~\ref{sec:accordion} 
-presents it in detail. 
+%The \sys\/ algorithm takes care of precisely these problems, to boost  
+%LSM store performance and reduce  storage wear-out. Section~\ref{sec:accordion} presents it in detail. 
 
 
-\anastas{
+
 \mypara{Memory allocation}
-HBase has two variations of how its MemStore data memory can be allocated: either as a standard Java object
-called \emph{pojo} -- Pure Old Java Object -- or as a part of bulk-allocated byte array via module called \emph{MSLAB} -- MemStore Local Allocation Buffer~\cite{hbasemslab}. The later was presented in order to avoid full GC pauses, however with introduction of the G1GC the full pauses are rare. Recently, MSLAB in HBase 2.0 is mostly used for the off-heap memory allocation. MSLAB ensures that the memory for a memstore is made of large blocks, denoted \emph{chunks}. Each chunk is fixed size and holds data for multiple cells. Each chunk only belongs to one MemStore.
+HBase implements two schemes for allocating data cells in the  MemStore: either
+(1) each cell is a standard Java object called \emph{pojo} -- Pure Old Java Object; or
+(2) cells reside in a bulk-allocated byte array managed by the \emph{MSLAB} -- MemStore Local Allocation Buffer~\cite{hbasemslab} -- module. 
+In HBase 2.0, MSLAB is mostly used for  off-heap memory allocation. With this approach, the MemStore's memory consists of large blocks, called \emph{chunks}. Each chunk is fixed in size and holds data for multiple cells
+pertaining to a single MemStore.
 
-}
+
 
 
 
