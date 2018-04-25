@@ -1,0 +1,157 @@
+\documentclass{vldb}
+
+%========================
+%  Packages
+%========================
+
+\usepackage{epsfig,endnotes}
+\usepackage{graphicx,url,color}
+\usepackage{amsmath}
+\usepackage{amssymb}
+%\usepackage{amsthm}  %<---- for a different "look" in theorems (theorem word in bold, etc.) %ACM conflict with proof definition?
+%\usepackage{subfigure}
+%\usepackage[tight,footnotesize]{subfigure}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+
+%\usepackage{todonotes}
+%\usepackage[normalem]{ulem} %strikethrough: \sout{Hello World}
+%\usepackage{lastpage} %for number of pages
+%\usepackage{xspace}
+%\usepackage{multirow}
+
+\usepackage[colorlinks=true,allcolors=blue,breaklinks]{hyperref}   % hyperlinks, including DOIs and URLs in bibliography
+\usepackage{subcaption}
+%\usepackage{caption}
+\usepackage{float}
+
+%========================
+%  Macros
+%========================
+
+\newcommand{\code}[1]{\textsf{\fontsize{9}{11}\selectfont #1}}
+
+\newcommand{\inred}[1]{{\color{red}{#1}}}
+\newcommand{\inpurple}[1]{{\color{blue}{#1}}}
+\newcommand{\ingreen}[1]{{\color{green}{#1}}}
+\newcommand{\remove}[1]{}
+\newcommand{\Idit}[1]{[[\inred{Idit: #1}]]}
+\newcommand{\eshcar}[1]{[[\inred{eshcar: #1}]]}
+\newcommand{\anastas}[1]{[[\inpurple{Anastasia: #1}]]}
+\newcommand{\tb}{\hspace{5mm}}
+
+\newcommand{\sys}{Accordion}
+\newcommand{\basic}{{\em Basic}}
+\newcommand{\eager}{{\em Eager}}
+\newcommand{\adp}{{\em Adaptive}}
+\newcommand{\none}{{\em NoCompaction}}
+\newcommand{\magic}{{\em Adaptive}}
+\newcommand{\figw}{0.925\columnwidth}
+
+
+\newcommand{\speedup}[1]{#1$\times$}
+\newcommand{\tuple}[1]{\ensuremath{\langle \mbox{#1} \rangle}}
+\newcommand{\mypara}[1]{ \vspace{8pt} \noindent{\bf #1}\hspace{6pt}}
+
+\usepackage{balance}  % for  \balance command ON LAST PAGE  (only there!)
+
+% Include information below and uncomment for camera ready
+%\vldbTitle{\sys: Better Memory Organization for LSM Key-Value Stores}
+%\vldbAuthors{Bortnikov, Braginsky, Hillel, Keidar, and Sheffi}
+%\vldbDOI{https://doi.org/TBD}
+
+
+%========================
+\begin{document}
+
+\date{}
+
+\title{\sys: Better Memory Organization\\ for LSM Key-Value Stores}
+
+\numberofauthors{3} 
+\author{
+\alignauthor
+Edward Bortnikov\\
+       \affaddr{Yahoo Research}
+       \email{}
+\alignauthor       
+Anastasia Braginsky\\
+       \affaddr{Yahoo Research}
+       \email{}
+\alignauthor
+Eshcar Hillel\\
+       \affaddr{Yahoo Research}
+       \email{}
+       \and
+\alignauthor
+Idit Keidar\\
+       \affaddr{Technion and Yahoo Research}
+       \email{}       
+\alignauthor
+Gali Sheffi\\
+       \affaddr{Yahoo Research}
+       \email{}
+} % end author
+
+\maketitle
+
+
+
+%=========================================================================
+%  Abstract
+%=========================================================================
+
+\subsection*{Abstract}
+
+\emph{
+Log-structured merge (LSM)} stores have emerged as the technology of choice for building scalable 
+write-intensive key-value storage systems. An LSM store replaces random I/O with sequential 
+I/O by accumulating large batches of writes in a \emph{memory store} prior to flushing them to log-structured 
+disk storage; the latter is continuously re-organized in the background through a \emph{compaction}
+process for efficiency of reads. Though inherent to the LSM design, frequent compactions are a major pain point 
+because they slow down data store operations, primarily writes, and also increase disk wear. 
+Another performance bottleneck in today's state-of-the-art LSM stores, in particular ones that use
+managed languages like Java,  is the 
+fragmented memory layout of their dynamic memory store.
+
+In this paper we show 
+that these pain points may be mitigated via better  organization of the memory store.
+We present \sys\ -- an algorithm that addresses these problems by re-applying
+the LSM design principles to memory management. 
+\sys\ is implemented in the production code of Apache HBase, where it became the default deployment option 
+after extensive evaluation. We demonstrate \sys's double-digit performance gains versus 
+the baseline HBase implementation and discuss some unexpected lessons learned in the process. 
+
+%========================
+
+\section{Introduction} \label{sec:intro}
+\input{intro} 
+
+\section{Background} \label{sec:background}
+\input{background} 
+
+\section{\sys} \label{sec:accordion}
+\input{accordion} 
+
+\section{Performance Study} \label{sec:eval}
+
+\input{eval}
+
+\section{Related Work} \label{sec:related}
+\input{related}
+
+\section{Discussion} \label{sec:conclusions}
+\input{discussion}
+
+\subsection*{Acknowledgments}
+
+%Need to thank some people in the HBase community.
+We are thankful to the members of the HBase community for many helpful discussions during the development of the \sys\ project. In particular, we would like to thank Michael Stack, Ramakrishna Vasudevan, Anoop Sam John, Duo Zhang, Chia-Ping Tsai, and Ted Yu.
+
+% \newpage
+
+\bibliographystyle{acm}
+
+\bibliography{refs}
+
+\end{document}

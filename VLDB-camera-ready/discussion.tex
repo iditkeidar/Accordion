@@ -1,0 +1,47 @@
+
+While disk compactions in LSM stores have gotten a lot of attention, their in-memory organization was, by and large,  ignored.
+In this work, we showed that applying the LSM  principles also to RAM can significantly improve performance and reduce disk wear. 
+We presented \sys, a new memory organization for LSM stores, which employs \emph{in-memory} flushes and 
+compaction to reduce the LSM store's memory footprint and improve the efficiency of memory management and access. 
+We integrated \sys\ in Apache HBase, where it became the production default following extensive testing. 
+
+In this paper, we evaluated \sys\ with different storage technologies (HDD and SSD) and various compaction policies, leading
+to some interesting insights and surprises:
+
+\mypara{Flattening and active component size}
+We showed that flattening the in-memory index reduces the memory management overhead as well as the frequency of
+disk writes, thus  improving performance and also reducing disk wear-out. Originally, we expected  an active segment
+(skiplist) comprising 10--20\% of the memory store to be effective, and anticipated that smaller active components would 
+result in excessive flush and compaction overhead. Surprisingly, we found that performance is improved by using a much 
+smaller active component, taking up only 2\% of the memory store. This is due in part to the fact that our workload is comprised
+of small objects -- which are common in production workloads~\cite{Wu2015} -- where the indexing overhead is substantial.   
+
+\mypara{Impact of memory management on write throughput}
+We showed that the write volume can be further reduced, particularly in production-like self-similar key access distributions, by merging memory-resident data, namely, eliminating redundant objects.
+We expected this reduction in write volume to also improve performance. Surprisingly, we found that 
+disk I/O was not a principal bottleneck, even on HDD. In fact, write throughput is strongly correlated with GC time, 
+regardless of the write volume.
+
+\mypara{Cost of redundant data elimination}
+We expected redundant data elimination to favorably affect performance, since it frees up memory and reduces the write volume.
+This has led us to develop \eager, an aggressive policy that frequently performs in-memory data merges. 
+Surprisingly, this proved detrimental for performance. The cost of the \eager\ policy was exacerbated by the 
+fact that we benefitted from a significantly smaller active component than originally expected (as noted above),  
+where it literally could not keep up with the in-memory flush rate. 
+This led us to develop a new policy, \adp, which heuristically decides when to perform data merges based on 
+an estimate of the expected yield. 
+While \adp\ does not improve performance compared to the  \basic\ policy, which merges only indices and not data,
+it does reduce the write volume, which is particularly important for longevity of SSD drives.
+
+\mypara{Deployment recommendations} Following the set of experiments we ran, we can glean some recommendations 
+for selecting policies and parameter values.
+The recommended compaction policy is \adp, which offers the best performance vs disk-wear tradeoff.
+When running without MSLAB (i.e., with a flat index), 
+an active segment size of $A=0.02$ offered the best performance in all settings we experimented with, though bigger values of $A$ might be most appropriate in settings with big values (and hence lower meta-data-to-data ratios). 
+When using MSLAB allocation, it is wasteful to use such a small active segment, because an entire chunk is allocated to it, and 
+so we recommend using $A=0.1$.
+Assuming the workload is skewed (as production workloads usually are), we recommend using a fairly aggressive compaction threshold $R=0.2$. If the workload is more uniformly distributed or if write throughput is more crucial than write amplification, then one can increase the value $R$ up to $0.5$ or even higher to match the throughput of \basic. 
+The pipeline size $S$ induces a tradeoff between read and write performance.
+If the workload is write-intensive then we recommend using $S=5$, and if the workload is read-oriented  $S=2$ is better.
+%Among all write-only experiments the one yielding the highest throughput was running without mslabs.
+We note that most of the recommendations here are set as default values in the coming HBase 2.0 release.

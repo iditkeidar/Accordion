@@ -1,0 +1,46 @@
+The basis for LSM data structures is the \emph{logarithmic
+method} \cite{Bentley79}.
+It was initially
+proposed as a way to efficiently transform static search structures into dynamic ones.
+This method inspired the original work on
+\emph{LSM-trees}~\cite{O'Neil1996} and its variant for multi-versioned
+data stores~\cite{Muth1998}.
+
+
+
+
+\remove{
+In other words, LSM trees struggle to balance between {\em read amplification} (the number 
+of disk reads per query) and {\em write amplification} (the ratio of bytes written to disk versus bytes written to the 
+database)~\cite{rocksdbtuning}. 
+}
+
+
+Because compaction frequency and efficiency has a significant impact on LSM store performance and disk wear, 
+many previous works have focused on tuning compaction parameters and scheduling~\cite{hbasetuning,rocksdb,
+scylladbcompaction,universalcompaction,Sears:2012} or reducing their cost via more efficient on-disk organization~\cite{wisckey}. 
+However, these works focus on \emph{disk compactions},
+which deal with data \emph{after} it has been flushed to disk. We are not aware of any previous work that 
+added \emph{in-memory} compactions to LSM stores.
+
+Some previous works have focused on other in-memory optimizations. 
+cLSM~\cite{clsm} focused on scaling LSM stores on multi-core hardware by adding lightweight synchronization to LevelDB. 
+\sys, on the other hand, is based on HBase, which already uses a concurrent in-memory skiplist; improving concurrency
+in the line of cLSM is orthogonal to our contribution.  
+
+Facebook's RocksDB~\cite{rocksdb} is the state-of-the-art implementation of a key-value store.
+All writes to RocksDB are first inserted into an in-memory active segment (called memtable). Once the active segment is full, a new one is created and the old one immutable. At any point in time there is exactly one active segment and zero or more immutable segments~\cite{rocksdbtuning}. Unlike \sys\ the indices of immutable segments are not flattened or merged, and the content of the segment is only compacted upon flush to disk.
+
+Similarly to us, the authors of FloDB~\cite{flodb} also observed that using large skiplists is detrimental to 
+LSM store performance, and so FloDB also partitions the memory component. However, rather than using 
+a small skiplist and large flat segments as \sys\ does, FloDB  uses a small hash table and a large skiplist.
+Put operations inserting data to the small hash table are much faster than insertions to the large skiplist, 
+and the latter are batched and inserted via multi-put operations that amortize the cost of the slow skiplist access.
+Unlike \sys, FloDB does not reduce the memory footprint by either flattening or compaction. 
+
+LSM-trie~\cite{Wu2015} is motivated by the prevalence of small objects in industrial NoSQL workloads.  
+Like us, they observed that skiplists induce high overhead when used to manage many small objects.  
+They suggest to replace the LSM store architecture with an LSM trie, which is based on hashing instead of ordering 
+and thus eliminates the memory for indexing. This data structure is much faster, but only for small values, and, more importantly, does not
+support range queries.
+
