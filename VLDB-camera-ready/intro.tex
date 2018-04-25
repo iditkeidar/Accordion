@@ -134,7 +134,9 @@ To summarize, \sys\ takes a proactive approach for handling disk compaction even
 It grows and shrinks a sequence of static memory segments resembling accordion bellows, 
 thus increasing memory utilization and reducing fragmentation, garbage collection costs, and the disk write volume. 
 Our experiments show that it significantly improves end-to-end system performance and reduces disk wear, 
-which led to the recent adoption of this solution as HBase's default memory store implementation; it is generally available starting the HBase 2.0 release.
+which led to the recent adoption of this solution 
+%as HBase's default memory store implementation; 
+in HBase production code; it is generally available starting the HBase 2.0 release.
  Section~\ref{sec:related} discusses related work 
 and Section~\ref{sec:conclusions} concludes the paper.
 
