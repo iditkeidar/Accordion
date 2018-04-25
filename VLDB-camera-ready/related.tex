@@ -34,9 +34,9 @@ cLSM~\cite{clsm} focused on scaling LSM stores on multi-core hardware by adding 
 in the line of cLSM is orthogonal to our contribution.  
 
 Facebook's RocksDB~\cite{rocksdb} is the state-of-the-art implementation of a key-value store.
-All writes to RocksDB are first inserted into an in-memory active segment (called memtable). Once the active segment is full, a new one is created and the old one immutable. At any point in time there is exactly one active segment and zero or more immutable segments~\cite{rocksdbtuning}. Unlike \sys\ the indices of immutable segments are not flattened or merged, and the content of the segment is only compacted upon flush to disk.
+All writes to RocksDB are first inserted into an in-memory active segment (called memtable). Once the active segment is full, a new one is created and the old one becomes immutable. At any point in time there is exactly one active segment and zero or more immutable segments~\cite{rocksdbtuning}. Unlike \sys\  immutable segments take the same form of mutable segments. Namely, there is no effort done to change the layout of (flatten) the indices of immutable segments or to merge their content in any way while it is in-memory.
 
-Similarly to us, the authors of FloDB~\cite{flodb} also observed that using large skiplists is detrimental to 
+Similarly to \sys, the authors of FloDB~\cite{flodb} also observed that using large skiplists is detrimental to 
 LSM store performance, and so FloDB also partitions the memory component. However, rather than using 
 a small skiplist and large flat segments as \sys\ does, FloDB  uses a small hash table and a large skiplist.
 Put operations inserting data to the small hash table are much faster than insertions to the large skiplist, 
