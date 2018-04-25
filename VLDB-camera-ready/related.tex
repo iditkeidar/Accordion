@@ -2,11 +2,16 @@ The basis for LSM data structures is the \emph{logarithmic
 method} \cite{Bentley79}.
 It was initially
 proposed as a way to efficiently transform static search structures into dynamic ones.
-This method inspired the original work on
+A \emph{binomial list} structure stored a sequence of sorted arrays, called
+\emph{runs} each of size of power of two. Inserting an element triggers a
+cascaded series of merge-sorting of adjacent runs. Searching an
+element is done by applying a binary search on the runs starting with the
+smallest run until the element is found.
+AlphaSort~\cite{Nyberg95} further optimizes a sort algorithm by taking advantage of the entire memory hierarchy (from registers to disk); each run fits into the size of one level in the hierarchy.
+
+These methods inspired the original work on
 \emph{LSM-trees}~\cite{O'Neil1996} and its variant for multi-versioned
-data stores~\cite{Muth1998}.
-
-
+data stores~\cite{Muth1998}. 
 
 
 \remove{
