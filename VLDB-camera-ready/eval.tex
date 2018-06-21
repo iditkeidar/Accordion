@@ -96,7 +96,7 @@ write throughput (latency is not meaningful because puts are batched), as well a
 %Every data point is the median among five runs. 
 
 \mypara{Write throughput} 
-Figure~\ref{fig:write-throughput} depicts the performance speedup of  \basic\ and \adp\ over
+Figure~\ref{fig:write-throughput} depicts the performance speed-up of  \basic\ and \adp\ over
 \none. Table~\ref{tab:write-throughput} provides the absolute throughput numbers. 
 For the Zipf benchmark, the maximal speedup is $47.6\%$ on SSD and $25.4\%$ on HDD. For the uniform benchmark, 
 which has neither redundancy nor locality, they are $23.8\%$ and $8.9\%$, respectively. 
@@ -106,7 +106,7 @@ the MemStore speed than on background writes to the file system.
 
 \begin{table*}
   \centering
-
+\caption{\textbf{Write throughput (operations per second) of the best \sys\/ policy (\basic\/) vs \none, across multiple key distributions and disk hardware types. }}
         \begin{tabular}{|c|c|c|c|c|c|}
       \hline
        & Zipf, SSD & Zipf, HDD & Uniform, SSD & Uniform, HDD \\
@@ -115,7 +115,6 @@ the MemStore speed than on background writes to the file system.
 \basic & $115{,}730$ & $78{,}392$ & $92{,}816$   & $38{,}488$ \\
       \hline
     \end{tabular}
-\caption{Write throughput (operations per second) of the best \sys\/ policy (\basic\/) vs \none, across multiple key distributions and disk hardware types. }
 \label{tab:write-throughput}
 \end{table*}
 
@@ -134,10 +133,10 @@ the MemStore speed than on background writes to the file system.
     \label{fig:write-throughput:uniform}
   \end{subfigure}
 
-\caption{Write throughput speedup vs \none\/ (HBase legacy MemStore) achieved by \sys\/ with \basic\/ and \adp\/ policies. 
+\caption{\textbf{Write throughput speedup vs \none\/ (HBase legacy MemStore) achieved by \sys\/ with \basic\/ and \adp\/ policies. 
 Measured on the Zipf and uniform key distributions, on SSD and HDD hardware. In SSD systems, 
 \basic\/ increases the write throughput by close to $48$\%. 
-} 
+} }
 \label{fig:write-throughput}
 \end{figure*}
 
@@ -145,7 +144,8 @@ Measured on the Zipf and uniform key distributions, on SSD and HDD hardware. In 
 \begin{table*}
   \centering
   
-    \begin{tabular}{|c|c|c|c|c|}
+   \caption{\textbf{Number of flushes and compactions, measured for \none\/ vs \sys\/ policies, for the Zipf key distribution.  }}
+   \begin{tabular}{|c|c|c|c|c|}
       \hline
       Policy & $\#$flushes, SSD & $\#$compactions, SSD & $\#$flushes, HDD & $\#$compactions, HDD\\
       \hline
@@ -158,7 +158,6 @@ Measured on the Zipf and uniform key distributions, on SSD and HDD hardware. In 
       \hline
     \end{tabular}
 
-  \caption{Number of flushes and compactions, measured for \none\/ vs \sys\/ policies, for the Zipf key distribution.  }
   \label{tab:counters}
 \end{table*}
 
@@ -176,8 +175,8 @@ Measured on the Zipf and uniform key distributions, on SSD and HDD hardware. In 
     \label{fig:volume:hdd}
   \end{subfigure}
 
-  \caption{Bytes written by flushes and compactions, measured for \none\/ vs \sys\/ policies, for the Zipf key distribution. 
-  The \adp\/ policy provides double-digit savings for disk I/O. }
+  \caption{\textbf{Bytes written by flushes and compactions, measured for \none\/ vs \sys\/ policies, for the Zipf key distribution. 
+  The \adp\/ policy provides double-digit savings for disk I/O. }}
   \label{fig:volume}
 \end{figure*}
 Surprisingly, the \basic\/ policy, which flattens and merges segment indices but avoids 
@@ -233,11 +232,11 @@ GC cycles may be correlated with other costs, e.g., memory fragmentation, which 
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/gc-throughput-log2.png}
-\caption{Cumulative GC time vs write throughput, measured on SSD machines 
+\caption{\textbf{Cumulative GC time vs write throughput, measured on SSD machines 
 for multiple \sys\/ policies and configurations, for the Zipf  key distribution. Each data point 
 depicts the throughput vs GC time of one experiment. Both axes are in log-log scale.  
 The graph shows a clear negative correlation between the two metrics. 
-}
+}}
 \label{fig:gc-throughput-log2}
 \end{figure}
 
@@ -252,8 +251,8 @@ the index is taken off-heap the JVM GC has less work to do.
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/write-only-off-heap.pdf}
-\caption{Throughput speedup when using flat (un-serialized) and serialized segments allocated on MSLAB, off-heap and on-heap.
-}
+\caption{\textbf{Throughput speedup when using flat (un-serialized) and serialized segments allocated on MSLAB, off-heap and on-heap.
+}}
 \label{fig:write_only_off_heap}
 \end{figure}
 
@@ -281,9 +280,9 @@ depicts the relative latency slowdown of \basic\/ and \adp\/ ($R=0.2$) versus \n
     \label{fig:latency:hdd}
   \end{subfigure}
 
-  \caption{Read latency speedup (respectively, slowdown) of \basic\/ and \adp\/ versus \none, under high write contention.
+  \caption{\textbf{Read latency speedup (respectively, slowdown) of \basic\/ and \adp\/ versus \none, under high write contention.
   Latencies are broken down by percentile. In HDD systems, \adp\/ delivers up to $40$\% tail latency reduction. 
-  }
+  }}
   
   \label{fig:latency}
 \end{figure*}
@@ -307,8 +306,8 @@ Finally, we study  scans  on SSD under Zipf key distribution. We exercise  the s
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/scans.pdf}
-\caption{Latency speedup for scans of \basic.
-}
+\caption{\textbf{Latency speedup for scans of \basic.
+}}
 \label{fig:scans}
 \end{figure}
 
@@ -327,10 +326,10 @@ The store scales as the active segment memory fraction decreases.
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/dynamic-fraction-1.png}
-\caption{Tuning of the active segment memory fraction, $A$, for the \basic\/ policy, with $S=2$,
+\caption{\textbf{Tuning of the active segment memory fraction, $A$, for the \basic\/ policy, with $S=2$,
 Zipf distribution on SSD.  Five experiments are conducted for each $A$. 
 The write throughput is higher for small values of $A$.
-}
+}}
 \label{fig:dynamic-fraction}
 \end{figure}
 
@@ -360,7 +359,7 @@ the effect of the parameter $S$ on  read performance -- we saw that the gap in s
     \label{fig:pipeline:hdd}
   \end{subfigure}
 
-\caption{Tuning of the pipeline size bound, $S$, for the \basic\/ policy. Five experiments are conducted for each $S$.} 
+\caption{\textbf{Tuning of the pipeline size bound, $S$, for the \basic\/ policy. Five experiments are conducted for each $S$.} }
 \label{fig:pipeline}
 \end{figure*}
 
@@ -373,8 +372,8 @@ Since \adp\ is always superior to \eager, we excluded \eager\ from the experimen
 
 \begin{figure}[htb]
 \includegraphics[width=\figw]{Figs/eager-throughput.png}
-\caption{Throughput (op/sec): \eager\/ versus \basic\/ in different settings.
-}
+\caption{\textbf{Throughput (op/sec): \eager\/ versus \basic\/ in different settings.
+}}
 \label{fig:eager-throughput}
 \end{figure}
 

@@ -22,10 +22,10 @@ an ordered pair of begin and end row keys).
 \begin{figure}[tb]
 \center
 \includegraphics[width=0.9\columnwidth]{LSM} 
-\caption{A log-structured merge (LSM) store consists of a small memory store ({\em MemStore} in HBase) 
+\caption{\textbf{A log-structured merge (LSM) store consists of a small memory store ({\em MemStore} in HBase) 
 and a large disk store (collection of {\em HFiles}). Put operations update the MemStore. The latter is 
 double-buffered: a flush creates an immutable \emph{snapshot} of the active buffer and  a new active 
-buffer. The snapshot is then written to disk in the background.}
+buffer. The snapshot is then written to disk in the background.}}
 \label{fig:LSM}
 \end{figure}
 

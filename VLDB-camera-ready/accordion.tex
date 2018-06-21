@@ -26,9 +26,9 @@ Figure~\ref{fig:accordion} illustrates the \sys\ architecture. It is parameteriz
 \begin{figure}[tb]
 \center
 \includegraphics[width=\columnwidth]{accordion-arch} 
-\caption{\sys's compacting memory store architecture adds a pipeline of flat segments between the active segment and the snapshot. 
+\caption{\textbf{\sys's compacting memory store architecture adds a pipeline of flat segments between the active segment and the snapshot. 
 The memory store includes a small dynamic active segment 
-and a pipeline of flat segments. A disk flush creates a snapshot of the pipeline for writing to disk.}
+and a pipeline of flat segments. A disk flush creates a snapshot of the pipeline for writing to disk.}}
 \label{fig:accordion}
 \end{figure}
 
@@ -72,7 +72,7 @@ In managed environments, it can be allocated in off-heap (unmanaged) memory, whi
     \label{fig:flattening:compaction}
   \end{subfigure}
 
-\caption{The active segment has a skiplist index. After a segment is added to the pipeline its index is flattened into an ordered array index. When the pipeline consists of $S$ segments, they are either merged or compacted. During a flattening or merge processes the data remains untouched. During a compaction indices are merged and redundancies in the data are eliminated. The key $K$ was updated twice on timestamp $ts=1$ and later on timestamp $ts=2$. Only in compacted segment the redundant version ($ts=1$) is eliminated.} 
+\caption{\textbf{The active segment has a skiplist index. After a segment is added to the pipeline its index is flattened into an ordered array index. When the pipeline consists of $S$ segments, they are either merged or compacted. During a flattening or merge processes the data remains untouched. During a compaction indices are merged and redundancies in the data are eliminated. The key $K$ was updated twice on timestamp $ts=1$ and later on timestamp $ts=2$. Only in compacted segment the redundant version ($ts=1$) is eliminated.} }
 \label{fig:flattening}
 \end{figure*}
 
@@ -216,7 +216,7 @@ HBase MSLAB chunks may be allocated off-heap.
     \label{fig:on-heap:ser}
   \end{subfigure}
 
-\caption{The difference between the flat segment and the serialized segment. The ordered array of the cell objects cannot be directly serialized and streamed into an off-heap chunk. The transformation shrinks the cell object into just 20 bits, and writes on the index chunk.} 
+\caption{\textbf{The difference between the flat segment and the serialized segment. The ordered array of the cell objects cannot be directly serialized and streamed into an off-heap chunk. The transformation shrinks the cell object into just 20 bits, and writes on the index chunk.} }
 \label{fig:on-heap}
 \end{figure*}
 
